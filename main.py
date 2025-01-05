@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-import on_start, gather, visuals
+import on_start, visuals
 import node
 
 #define states so we know what layout to render
