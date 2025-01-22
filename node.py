@@ -7,9 +7,6 @@ class Node:
         self.relevance = 0
         self.isAnimated = True
         self.children = []
-        nodes.append(self)
-        print("node created")
-        
     def init_complete(self):
         self.isAnimated = False
     def add_child(self,child):
@@ -19,4 +16,3 @@ class Node:
     def set_coords(self, x, y):
         self.x = x
         self.y = y
-nodes = []
