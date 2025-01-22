@@ -8,7 +8,7 @@ from threading import Thread
 def getRelevance():
     print("hi")
 
-def findLinks(soup):
+def findLinks(soup, root_url):
     print("\nfinding links")
     print(root_url)
     links = []
@@ -17,7 +17,10 @@ def findLinks(soup):
         if l:
             if (l[0] == '/'):
                 l = root_url + l
-            if (l[0]== '#'):
+            if (l[0]== '#' ):
+                print("not a link")
+                continue
+            if("javascript:" in l):
                 print("not a link")
                 continue
             print(l)
@@ -25,11 +28,10 @@ def findLinks(soup):
     
     return links
 
-def linkExists(url):
+def linkExists(url, seen):
     print("\nchecking link")
-    for i in node.nodes:
-        #print(i.url)
-        if (i.url == url):
+    for i in seen:
+        if i.url == url:
             return True
     return False
 

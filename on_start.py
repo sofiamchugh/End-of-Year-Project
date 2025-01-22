@@ -3,10 +3,11 @@ from tkinter import messagebox
 import node, gather
 
 class OnStartFrame(tk.Frame):
-    def __init__(self, parent, controller, data_queue):
+    def __init__(self, parent, controller, data_queue, seen):
         super().__init__(parent)
         self.controller = controller
         self.data_queue = data_queue
+        self.seen = seen
 
         url_label = tk.Label(self, text="URL:")
         url_label.grid(row=0, column=0, padx=10, pady=10)
@@ -33,7 +34,8 @@ class OnStartFrame(tk.Frame):
             #define the keywords array
             #define the first node
             firstNode = node.Node(first_url, 0)
-            self.data_queue.put((firstNode))
+            self.data_queue.put(firstNode)
+            self.seen.add(firstNode)
             self.controller.gather(firstNode, keywords)
             self.controller.show_frame("Gathering")
             return 1

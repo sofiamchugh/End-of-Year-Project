@@ -28,15 +28,20 @@ class GatherFrame(tk.Frame):
         #UI elements go here
         stop_button = tk.Button(self, text="Stop", command=self.stop_gathering)
         stop_button.pack(pady=10)
-        
+
+        self.data_listbox = tk.Listbox(self, width=50, height=15)
+        self.data_listbox.pack(pady=10)
+        self.poll_data()
     def poll_data(self):
         if not self.is_running:
             return
         try:
             while True:
+                print("polling")
                 data = self.data_queue.get_nowait()
                 if data is None:
                     return
+                self.data_listbox.insert(tk.END, f"{data.url}")
         except Exception:
             pass
         self.after(100, self.poll_data)
@@ -44,6 +49,6 @@ class GatherFrame(tk.Frame):
     def stop_gathering(self):
         """Stop the data gathering process and clear the queue."""
         self.is_running = False
-        self.label.config(text="Data gathering stopped.")
+        
         with self.data_queue.mutex:
             self.data_queue.queue.clear()
