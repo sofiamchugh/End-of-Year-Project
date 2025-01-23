@@ -1,7 +1,22 @@
 import tkinter as tk
 from tkinter import messagebox
 import node, gather
+from urllib.parse import urlparse
 
+def get_homepage(url):
+    """
+    
+    """
+    try:
+        parsed_url = urlparse(url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            raise ValueError("Invalid URL")
+        # Construct the homepage URL
+        homepage_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        return homepage_url
+    except Exception as e:
+        return f"Error: {e}"
+    
 class OnStartFrame(tk.Frame):
     def __init__(self, parent, controller, data_queue, seen):
         super().__init__(parent)
@@ -33,10 +48,11 @@ class OnStartFrame(tk.Frame):
                 keywords = ["essay", "video"]
             #define the keywords array
             #define the first node
+            homepage_url = get_homepage(first_url)
             firstNode = node.Node(first_url, 0)
             self.data_queue.put(firstNode)
-            self.seen.add(firstNode)
-            self.controller.gather(firstNode, keywords)
+            self.seen.add(first_url)
+            self.controller.gather(firstNode, keywords, homepage_url)
             self.controller.show_frame("Gathering")
             return 1
 

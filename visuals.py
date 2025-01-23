@@ -37,7 +37,6 @@ class GatherFrame(tk.Frame):
             return
         try:
             while True:
-                print("polling")
                 data = self.data_queue.get_nowait()
                 if data is None:
                     return

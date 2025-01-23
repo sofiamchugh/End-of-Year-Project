@@ -8,30 +8,25 @@ from threading import Thread
 def getRelevance():
     print("hi")
 
-def findLinks(soup, root_url):
-    print("\nfinding links")
-    print(root_url)
+def findLinks(soup, homepage_url):
     links = []
     for link in soup.find_all('a'):
         l = link.get('href')
         if l:
             if (l[0] == '/'):
-                l = root_url + l
-            if (l[0]== '#' ):
-                print("not a link")
+                l = homepage_url + l
+            if(homepage_url not in l):
+                #this accounts for:
+                #javascript:void() links or similar
+                #URLs that take us outside of the website
                 continue
-            if("javascript:" in l):
-                print("not a link")
-                continue
-            print(l)
             links.append(l)
     
     return links
 
 def linkExists(url, seen):
-    print("\nchecking link")
     for i in seen:
-        if i.url == url:
+        if i == url:
             return True
     return False
 
