@@ -1,50 +1,55 @@
 import tkinter as tk
-def drawNode(node):
-    return 0
-def drawLink(parent, child):
-    return 0
-def drawExpand(parent):
-    return 0
+from tkinter import ttk
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import networkx as nx
 
-def drawRest(parent):
-    if(len(parent.children) > 7):
-        drawExpand(parent)
-    else:
-        for child in parent.children:
-            drawNode(child)
-            drawLink(parent, child)
-            drawRest(child)
 
-def draw(root, firstNode):
-    drawNode(firstNode)
-    drawRest(firstNode)
-
-class GatherFrame(tk.Frame):
+class GatherFrame(ttk.Frame):
     def __init__(self, parent, controller, data_queue):
         super().__init__(parent)
         self.controller = controller
         self.data_queue = data_queue
         self.is_running = True
-        #UI elements go here
-        stop_button = tk.Button(self, text="Stop", command=self.stop_gathering)
-        stop_button.pack(pady=10)
-
-        self.data_listbox = tk.Listbox(self, width=50, height=15)
-        self.data_listbox.pack(pady=10)
-        self.poll_data()
-    def poll_data(self):
+        self.G = nx.Graph()
+        self.pos = {}
+        self.fig, self.ax = plt.subplots(figsize=(6, 6))
+        self.ax.set_axis_off()
+        self.canvas = FigureCanvasTkAgg(self.fig, self)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.ani = animation.FuncAnimation(self.fig, self.poll_data, interval=1000, cache_frame_data=False)  # Update every second
+        
+    def poll_data(self, frame=None):
         if not self.is_running:
             return
         try:
-            while True:
+            while not self.data_queue.empty():
+                print("polling!")
                 data = self.data_queue.get_nowait()
                 if data is None:
                     return
-                self.data_listbox.insert(tk.END, f"{data.url}")
+                self.G.add_node(data.url)
+                print(f"Added node {data.url} to G")
+                if (data.parent.url != 0):
+                    self.G.add_edge(data.url, data.parent.url)
+                    print(f"With edge {data.parent.url}")
+            if len(self.G.nodes) > 0:
+                print("drawing")
+                if not self.pos:  # If pos is still empty (first time layout is calculated)
+                    self.pos = nx.spring_layout(self.G, seed=42)
+                    print(f"Initial layout calculated: {self.pos}")
+                self.pos = nx.spring_layout(self.G, pos=self.pos, iterations=5)
+                print(f"Positions of nodes: {self.pos}")
+                self.ax.clear()
+                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color='lightblue', edge_color='gray')
+                self.canvas.draw()
         except Exception:
             pass
-        self.after(100, self.poll_data)
+        
+                
 
+       
     def stop_gathering(self):
         """Stop the data gathering process and clear the queue."""
         self.is_running = False
