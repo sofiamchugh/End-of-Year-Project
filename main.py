@@ -12,10 +12,11 @@ from selenium.webdriver.chrome.options import Options
 import threading
 from gather import findLinks, getRelevance, linkExists
 
+#setup for selenium to open URLs in chrome
 chrome_options = Options()
-chrome_options.add_argument("--headless")  # Run Chrome in headless mode
-chrome_options.add_argument("--disable-dev-shm-usage")  # Use /tmp for shared memory
-chrome_options.add_argument("--no-sandbox")  # Disable sandboxing
+chrome_options.add_argument("--headless")  
+chrome_options.add_argument("--disable-dev-shm-usage") 
+chrome_options.add_argument("--no-sandbox")  
 
 class App(tk.Tk):
     def __init__(self):
@@ -30,7 +31,7 @@ class App(tk.Tk):
             self.lock = threading.Lock()
             self.executor = ThreadPoolExecutor(max_workers = 3)
             self.init_frames()
-            
+            self.nodes = []
 
     def init_frames(self):
           self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue, seen=self.seen)
@@ -47,28 +48,43 @@ class App(tk.Tk):
         def worker(thisNode):
             try:
                 print(f"processing URL {thisNode.url}")
-                
                 with webdriver.Chrome(options=chrome_options) as driver:
+
+                    #fetch web content and turn into beautiful soup object
                     driver.get(thisNode.url)
                     time.sleep(3) 
                     text = driver.page_source
                     soup = BeautifulSoup(text, 'html.parser')
+
+                    firstNode.relevance = getRelevance(soup, keywords)
+                    #run keyword search through soup
                     links = findLinks(soup, homepage_url)
-                    #firstNode.relevance = getRelevance(firstNode.url)
-                    firstNode.init_complete()
+                    #find all links to other pages on the same website
+
                     for linkFound in links:
+                        #for each link 
                         with self.lock:
                             if(linkExists(linkFound, self.seen)==False):
+                            #if we haven't processed this URL already
                                 child = node.Node(linkFound, thisNode)
+                                #create a new node corresponding to URL 
                                 self.data_queue.put(child)
-                                self.seen.add(linkFound)
+                                #add node to queue for graph visualisation
+                                """self.nodes.append(child.print_me)"""
+                                self.seen.add(child.url)
+                                #add node to set for uniqueness checks
                                 firstNode.add_child(child)
+                                #add node to previous node's list of children
                                 self.executor.submit(worker, child)
+                                #submit node for processing
+
+                    self.data_queue.put(thisNode)
+                    #the second time a node is put in the queue it is finished processing
+                    #the node will no longer be animated in the graph
             except Exception as e:
                 print(f"Gathering error {e}")
         self.executor.submit(worker, firstNode)
         print("done")
-
 
 app = App()
 app.mainloop()

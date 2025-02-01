@@ -5,10 +5,7 @@ class Node:
         self.url = url
         self.parent = parent
         self.relevance = 0
-        self.isAnimated = True
         self.children = []
-    def init_complete(self):
-        self.isAnimated = False
     def add_child(self,child):
         self.children.append(child)
     def set_relevance(self,relevance):
@@ -16,3 +13,5 @@ class Node:
     def set_coords(self, x, y):
         self.x = x
         self.y = y
+    def print_me(self):
+        return self.url + ": " + self.relevance
