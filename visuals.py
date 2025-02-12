@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import networkx as nx
+import customtkinter as ctk
 import numpy as np
 from click_functions import onClick, onHover
 
 
-class GatherFrame(ttk.Frame):
+class GatherFrame(ctk.CTkFrame):
     def __init__(self, parent, controller, data_queue):
         super().__init__(parent)
         self.controller = controller
@@ -23,6 +24,7 @@ class GatherFrame(ttk.Frame):
         self.ani = animation.FuncAnimation(self.fig, self.poll_data, interval=200, cache_frame_data=False)  # Update every second
         self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self))
         self.animated_nodes = {}
+        self.node_colours = []
     def poll_data(self, frame=None):
         if not self.is_running:
             return
@@ -30,15 +32,33 @@ class GatherFrame(ttk.Frame):
             nodesCount = len(self.G.nodes)
             while not self.data_queue.empty():
                 data = self.data_queue.get_nowait()
+                print(f"data gathered: {data.url}, {data.relevance}")
                 if data is None:
                     return
                 if data.url not in self.G.nodes:
+                    #if we have never seen this node before
                     self.G.add_node(data.url)
+                    #add it to the graph
                     if (data.parent != 0):
                         self.G.add_edge(data.url, data.parent.url)
                     self.animated_nodes[data.url] = True
+                    self.node_colours.append('lightblue')
+                    #animate the node
                 else:
                     self.animated_nodes[data.url] = False 
+                    #when we find the same node a second time, stop animating
+                    node_list = list(self.G.nodes)
+                    index = node_list.index(data.url)
+                    if (data.relevance >= 0.7):
+                        self.node_colours[index] = 'red'
+                    elif(data.relevance <= 0.2):
+                        self.node_colours[index] = 'green'
+                    else:
+                        self.node_colours[index] = 'orange'
+                
+
+                #add a colour to the colours array according to relevance
+           
             if len(self.G.nodes) > 0:
                 if not self.pos:  
                     #first time layout is calculated
@@ -50,13 +70,12 @@ class GatherFrame(ttk.Frame):
                 node_sizes = []
                 for node in self.G.nodes:
                     if self.animated_nodes.get(node, False):
+                        print("animation ")
                         node_sizes.append(100 + 50 * np.sin(frame * 2 * np.pi / 50))
-                        print(f"this one is animated {node}")
                     else:
                         node_sizes.append(100)
-                print(node_sizes)
                 self.ax.clear()
-                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color='lightblue', edge_color='gray', node_size = node_sizes)
+                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = node_sizes)
                 self.canvas.draw()
         except Exception as e:
                 print(f"UI error {e}")

@@ -1,36 +1,42 @@
 import node
 import re
+import validators
 from bs4 import BeautifulSoup
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from nltk.corpus import wordnet
+from sentence_transformers import SentenceTransformer, util
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-"""def getSynonyms(word):
-    synonyms = set()
-    for syn in wordnet.synsets(word):
-        for lemma in syn.lemmas():
-            synonyms.add(lemma.name().replace("_", " "))
-    return list(synonyms)
-"""
+def strainSoup(soup):
+    # Remove script elements and embedded content
+    for tag in soup(["script", "style", "iframe"]):
+        tag.decompose()
+
+    # Remove elements described as ads/sponsored content
+    for ad in soup.find_all(["div", "ins"], class_=lambda x: x and ("ad" in x.lower() or "sponsored" in x.lower())):
+        ad.decompose()
+
+    return soup
+
+def UrlIsValid(url):
+    if not validators.url(url):
+        return False
+    else:
+        return True
+    
 def getRelevance(soup, keywords):
-    """keywordsExpanded = []
-    for word in keywords:
-        keywordsExpanded.append(getSynonyms(word))
-
+    print(f"keywords = {keywords}")
     web_text = soup.get_text(separator=" ")  
     #get all text from soup
     web_text = re.sub(r'\s+', ' ', web_text).strip()  
     #remove newlines and extra spaces
-   # vectorizer = TfidfVectorizer(stop_words='english')
-    #remove stop words"""
-
-    """documents = [web_text, " ".join(keywords)]  
-    tfidf_matrix = vectorizer.fit_transform(documents)
-
-    similarity_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-    return similarity_score[0][0]  # Return the cosine similarity score"""
-    return 0
-
+    
+    web_embedding = model.encode(web_text, convert_to_tensor=True)
+    #SBERT vector for the webpage text
+    keyword_embedding = model.encode(" ".join(keywords), convert_to_tensor=True)
+    #SBERT vector for the keywords
+    similarity_score = util.pytorch_cos_sim(web_embedding, keyword_embedding).item()
+    #compute cosine similarity
+    print(f"\nsimilarity score {similarity_score}")
+    return similarity_score
 
 def findLinks(soup, homepage_url):
     links = []
