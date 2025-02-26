@@ -54,7 +54,7 @@ class App(ctk.CTk):
     def gather(self, firstNode, keywords, homepage_url):
         def worker(thisNode):
             try:
-                print(f"processing URL {thisNode.url}")
+                print(f"processing URL {thisNode.url}\n")
                 with webdriver.Chrome(options=chrome_options) as driver:
 
                     driver.get(thisNode.url)
@@ -64,7 +64,7 @@ class App(ctk.CTk):
                     #fetch web content and turn into beautiful soup object
                     soup = strainSoup(soup)
                     #clean soup object of scripts and ads
-
+                    print("computing relevance....\n")
                     thisNode.set_relevance(getRelevance(soup, keywords))
                     #run keyword search through soup
                     links = findLinks(soup, homepage_url)
@@ -79,10 +79,6 @@ class App(ctk.CTk):
                             #if we haven't processed this URL already
                                 child = node.Node(linkFound, thisNode)
                                 #create a new node corresponding to URL 
-                               # self.data_queue.put(child)
-                                #add node to queue for graph visualisation
-                               # self.seen.add(child.url)
-                                #add node uniqueness checking set
                                 firstNode.add_child(child)
                                 #add node to previous node's list of children
                                 self.executor.submit(worker, child)

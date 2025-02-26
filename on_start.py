@@ -52,7 +52,8 @@ class OnStartFrame(ctk.CTkFrame):
         submit_button.grid(row=0, column=2, columnspan=2, pady=20)
 
         self.url_entry.bind("<Control-z>", self.undo)
-        self.url_entry.bind("<Return>", self.submit_form)
+        self.url_entry.bind("<Return>", self.submit_form) 
+        self.keyword_entry.bind("<Return>", self.submit_form)
         self.url_entry.bind("<KeyRelease>", self.on_change)
 
     def undo(self, event=None):
@@ -70,7 +71,7 @@ class OnStartFrame(ctk.CTkFrame):
             messagebox.showwarning("Validation Error", "All fields are required!")
             return 0
         else:
-            if not UrlIsValid(node):
+            if not UrlIsValid(first_url):
                 messagebox.showwarning("Please enter a valid URL")
                 return 0
        

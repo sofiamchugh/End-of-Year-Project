@@ -23,8 +23,10 @@ class GatherFrame(ctk.CTkFrame):
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.ani = animation.FuncAnimation(self.fig, self.poll_data, interval=200, cache_frame_data=False)  # Update every second
         self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self))
+        self.fig.canvas.mpl_connect("motion_notify_event", lambda event: onHover(event, self))
         self.animated_nodes = {}
         self.node_colours = []
+
     def poll_data(self, frame=None):
         if not self.is_running:
             return
@@ -32,11 +34,11 @@ class GatherFrame(ctk.CTkFrame):
             nodesCount = len(self.G.nodes)
             while not self.data_queue.empty():
                 data = self.data_queue.get_nowait()
-                print(f"data gathered: {data.url}, {data.relevance}")
                 if data is None:
                     return
                 if data.url not in self.G.nodes:
                     #if we have never seen this node before
+                  #  print(f"Adding {data.url} once")
                     self.G.add_node(data.url)
                     #add it to the graph
                     if (data.parent != 0):
@@ -45,6 +47,7 @@ class GatherFrame(ctk.CTkFrame):
                     self.node_colours.append('lightblue')
                     #animate the node
                 else:
+                 #   print(f"Adding {data.url} twice")
                     self.animated_nodes[data.url] = False 
                     #when we find the same node a second time, stop animating
                     node_list = list(self.G.nodes)
@@ -70,7 +73,7 @@ class GatherFrame(ctk.CTkFrame):
                 node_sizes = []
                 for node in self.G.nodes:
                     if self.animated_nodes.get(node, False):
-                        print("animation ")
+                       
                         node_sizes.append(100 + 50 * np.sin(frame * 2 * np.pi / 50))
                     else:
                         node_sizes.append(100)

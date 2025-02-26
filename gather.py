@@ -2,7 +2,12 @@ import node
 import re
 import validators
 from bs4 import BeautifulSoup
+import numpy as np
 from sentence_transformers import SentenceTransformer, util
+from rank_bm25 import BM25Okapi
+from sklearn.preprocessing import MinMaxScaler
+
+# Load a transformer model for contextual similarity
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def strainSoup(soup):
@@ -17,26 +22,40 @@ def strainSoup(soup):
     return soup
 
 def UrlIsValid(url):
-    if not validators.url(url):
-        return False
-    else:
-        return True
+    return validators.url(url)
     
 def getRelevance(soup, keywords):
-    print(f"keywords = {keywords}")
+    bm25_weight = 0.5   
+    sbert_weight = 0.5
+
     web_text = soup.get_text(separator=" ")  
+    web_text = re.sub(r'\s+', ' ', web_text).strip()
     #get all text from soup
-    web_text = re.sub(r'\s+', ' ', web_text).strip()  
-    #remove newlines and extra spaces
+    i = np.random.randint(5)
+    if (i == 3):
+        print(web_text)
     
+    # Tokenize text for BM25
+    tokenized_text = web_text.split()
+    bm25 = BM25Okapi([tokenized_text])  # Index the document
+    
+    # Compute BM25 score
+    bm25_score = bm25.get_scores(keywords)[0]  # BM25 relevance
+    
+    # Compute SBERT similarity
     web_embedding = model.encode(web_text, convert_to_tensor=True)
-    #SBERT vector for the webpage text
     keyword_embedding = model.encode(" ".join(keywords), convert_to_tensor=True)
-    #SBERT vector for the keywords
-    similarity_score = util.pytorch_cos_sim(web_embedding, keyword_embedding).item()
-    #compute cosine similarity
-    print(f"\nsimilarity score {similarity_score}")
-    return similarity_score
+    sbert_score = util.pytorch_cos_sim(web_embedding, keyword_embedding).item()
+    
+    # Normalize scores 
+    scaler = MinMaxScaler()
+    scores = np.array([[bm25_score, sbert_score]])
+    normalized_scores = scaler.fit_transform(scores)[0]
+    
+    # Hybrid Score: Weighted combination of both
+    combined_score = (bm25_weight * normalized_scores[0]) + (sbert_weight * normalized_scores[1])
+    print(f"score: {combined_score}")
+    return combined_score
 
 def findLinks(soup, homepage_url):
     links = []
