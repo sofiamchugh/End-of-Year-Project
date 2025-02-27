@@ -11,7 +11,7 @@ from selenium import webdriver
 import time
 from selenium.webdriver.chrome.options import Options
 import threading
-from gather import findLinks, getRelevance, linkExists, strainSoup
+from gather import findLinks, getRelevance, linkExists
 
 
 #setup for selenium to open URLs in chrome
@@ -62,10 +62,10 @@ class App(ctk.CTk):
                     text = driver.page_source
                     soup = BeautifulSoup(text, 'html.parser')
                     #fetch web content and turn into beautiful soup object
-                    soup = strainSoup(soup)
-                    #clean soup object of scripts and ads
-                    print("computing relevance....\n")
-                    thisNode.set_relevance(getRelevance(soup, keywords))
+
+                    if keywords: 
+                        print("computing relevance....\n")
+                        thisNode.set_relevance(getRelevance(soup, keywords))
                     #run keyword search through soup
                     links = findLinks(soup, homepage_url)
                     #find all links to other pages on the same website
