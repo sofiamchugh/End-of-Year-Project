@@ -61,7 +61,8 @@ class KeywordEntryWidget(ctk.CTkFrame):
             if not text:
                 return None
             else:
-                return text
+                self.add_keyword(text)
+                return self.keywords
         else:
             return self.keywords
 

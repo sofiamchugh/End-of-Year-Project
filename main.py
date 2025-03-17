@@ -10,15 +10,23 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import time
 from selenium.webdriver.chrome.options import Options
+from playwright.sync_api import sync_playwright
 import threading
 from gather import findLinks, getRelevance, linkExists
 
 
 #setup for selenium to open URLs in chrome
-chrome_options = Options()
-chrome_options.add_argument("--headless")  
+"""chrome_options = Options()
+chrome_options.add_argument("--headless=new")  
 chrome_options.add_argument("--disable-dev-shm-usage") 
 chrome_options.add_argument("--no-sandbox")  
+chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+chrome_options.add_argument("disable-infobars")
+chrome_options.add_argument("--disable-popup-blocking")
+chrome_options.add_argument(
+     "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)"""
+
 
 ctk.set_appearance_mode("light")
 
@@ -55,11 +63,24 @@ class App(ctk.CTk):
         def worker(thisNode):
             try:
                 print(f"processing URL {thisNode.url}\n")
-                with webdriver.Chrome(options=chrome_options) as driver:
+                """ with webdriver.Chrome(options=chrome_options) as driver:
 
                     driver.get(thisNode.url)
                     time.sleep(3) 
-                    text = driver.page_source
+                    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+                    text = driver.page_source"""
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)  # Launch browser in headless mode
+                    page = browser.new_page()
+
+               #     page.set_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
+                    page.goto(thisNode.url)
+                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")  # Scroll to the bottom
+                    page.wait_for_load_state()
+                    text = page.content()
+                    browser.close()
                     soup = BeautifulSoup(text, 'html.parser')
                     #fetch web content and turn into beautiful soup object
 
@@ -84,9 +105,6 @@ class App(ctk.CTk):
                                 self.executor.submit(worker, child)
                                 #submit node for processing
 
-                    self.data_queue.put(thisNode)
-                    #the second time a node is put in the queue it is finished processing
-                    #the node will no longer be animated in the graph
             except TypeError:
                  print("invalid URL")
                  self.show_frame("OnStart")

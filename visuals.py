@@ -24,7 +24,6 @@ class GatherFrame(ctk.CTkFrame):
         self.ani = animation.FuncAnimation(self.fig, self.poll_data, interval=200, cache_frame_data=False)  # Update every second
         self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self))
         self.fig.canvas.mpl_connect("motion_notify_event", lambda event: onHover(event, self))
-        self.animated_nodes = {}
         self.node_colours = []
 
     def poll_data(self, frame=None):
@@ -37,27 +36,15 @@ class GatherFrame(ctk.CTkFrame):
                 if data is None:
                     return
                 if data.url not in self.G.nodes:
-                    #if we have never seen this node before
-                  #  print(f"Adding {data.url} once")
                     self.G.add_node(data.url)
-                    #add it to the graph
                     if (data.parent != 0):
                         self.G.add_edge(data.url, data.parent.url)
-                    self.animated_nodes[data.url] = True
-                    self.node_colours.append('lightblue')
-                    #animate the node
-                else:
-                 #   print(f"Adding {data.url} twice")
-                    self.animated_nodes[data.url] = False 
-                    #when we find the same node a second time, stop animating
-                    node_list = list(self.G.nodes)
-                    index = node_list.index(data.url)
                     if (data.relevance >= 0.7):
-                        self.node_colours[index] = 'red'
+                        self.node_colours.append('red')
                     elif(data.relevance <= 0.2):
-                        self.node_colours[index] = 'green'
+                        self.node_colours.append('green')
                     else:
-                        self.node_colours[index] = 'orange'
+                        self.node_colours.append('orange')
                 
 
                 #add a colour to the colours array according to relevance
@@ -70,15 +57,8 @@ class GatherFrame(ctk.CTkFrame):
                 if(nodesCount < len(self.G.nodes)):
                     #only recalculate layout if new nodes have been added
                     self.pos = nx.spring_layout(self.G, pos=self.pos, iterations=5)
-                node_sizes = []
-                for node in self.G.nodes:
-                    if self.animated_nodes.get(node, False):
-                       
-                        node_sizes.append(100 + 50 * np.sin(frame * 2 * np.pi / 50))
-                    else:
-                        node_sizes.append(100)
                 self.ax.clear()
-                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = node_sizes)
+                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = 100)
                 self.canvas.draw()
         except Exception as e:
                 print(f"UI error {e}")
