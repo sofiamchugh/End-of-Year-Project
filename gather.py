@@ -7,13 +7,14 @@ from sentence_transformers import SentenceTransformer, util
 from rank_bm25 import BM25Okapi
 from sklearn.preprocessing import MinMaxScaler
 import nltk
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize import sent_tokenize, word_tokenize
+from collections import Counter
 nltk.download('punkt')
 
 # Load a transformer model for contextual similarity
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-def strainSoup(soup):
+def strain_soup(soup):
     # Remove script elements and embedded content
     for tag in soup(["script", "style", "iframe"]):
         tag.decompose()
@@ -22,38 +23,28 @@ def strainSoup(soup):
     for ad in soup.find_all(["div", "ins"], class_=lambda x: x and ("ad" in x.lower() or "sponsored" in x.lower())):
         ad.decompose()
 
+    unwanted_texts = [
+        "copy link", 
+        "link copied to clipboard",
+        "Copy this link", 
+        "Copied to clipboard",
+        "Share link",
+        "Click to copy",
+        "skip to content",
+        "skip to footer",
+        "link copied"
+    ]
     web_text = soup.get_text(separator=" ")  
     web_text = re.sub(r'\s+', ' ', web_text).strip()
+    for text in unwanted_texts:
+        web_text = re.sub(text, '', web_text, flags=re.IGNORECASE)
     web_text = web_text.lower()
+
     return sent_tokenize(web_text)
 
-
-def UrlIsValid(url):
+def url_is_valid(url):
     return validators.url(url)
 
-def get_bm25_score(text, keywords):
-    try:
-        tokenized_text = [nltk.word_tokenize(sent) for sent in text]
-        tokenized_keywords = [nltk.word_tokenize(keyword.lower()) for keyword in keywords]
-        flattened_keywords = [word for sublist in tokenized_keywords for word in sublist]
-
-        print("Tokenized Text (First 100 words):", tokenized_text[0][:200])
-        print("Flattened Keywords:", flattened_keywords)
-        common_words = set(flattened_keywords) & set(tokenized_text[0])
-        print("Common Words:", common_words)
-
-        if not any(common_words):
-                   return 0
-        if not any(tokenized_text):
-            raise ValueError("Tokenized text is empty.")
-    
-        bm25 = BM25Okapi(tokenized_text)
-        bm25_scores = bm25.get_scores(flattened_keywords)
-        return bm25_scores[0]
-    
-    except Exception as e:
-        raise ValueError(f"Error in computing BM25 score")
-    
 def get_sbert_score(text, keywords):
     try:
         # Compute SBERT similarity
@@ -65,64 +56,64 @@ def get_sbert_score(text, keywords):
             return sbert_scores.max().item()
     except Exception as e:
         raise ValueError(f"Error in computing SBERT similarity:{e}")
-
     
-def getRelevance(soup, keywords):
-    bm25_weight = 0.5   
-    sbert_weight = 0.5
-    bm25_score = 0
-    sbert_score = 0
+def get_term_frequency(text, keyword):
+    """
+    S-BERT needs at least two keywords to score texts in a way that suits our purposes,
+    so for a single keyword we compute the term frequency.
+    The TF is very crudely normalized to return scores similar to the ranges of the S-BERT algorithm.
+    """
+    try:
+        words = [word.lower() for sentence in text for word in word_tokenize(sentence)]
+        word_counts = Counter(words)
+        keyword_count = word_counts[keyword[0].lower()]
+        tf = keyword_count / len(words) * 10 
+        print(f"Term frequency = {tf}")
+        if tf <= 0.01:
+            #low relevance score
+            return 0.2
+        elif tf >= 0.1:
+            #a single keyword being 1 out of 10 words in a text is highly relevant 
+            return 0.7
+        else:
+            #medium relevance score
+            return 0.5
+    except Exception as e:
+        raise ValueError(f"Error in getting term frequency: {e}")
+
+def get_relevance(soup, keywords):
+    relevance = 0
     try: 
-        web_text = strainSoup(soup)
+        web_text = strain_soup(soup)
         if not web_text:
             raise ValueError("Your strainer is broken")
-    
-        bm25_score = get_bm25_score(web_text, keywords)
-        print(bm25_score)
-        sbert_score = get_sbert_score(web_text, keywords)
-        scores = np.array([[bm25_score, sbert_score]])
-
-        if bm25_score is None:
-            raise ValueError("BM25 score error")
         
-        if sbert_score is None:
-            raise ValueError("SBERT score error")
-        
-        print(f"bm25 score: {bm25_score} \n sbert score: {sbert_score}\n")
-       
-        try: 
-            # Normalize scores 
-            scaler = MinMaxScaler()
-            normalized_scores = scaler.fit_transform(scores.reshape(-1, 1)).flatten()
-            print(f"bm25 score: {bm25_score} \n sbert score: {sbert_score}\n")
-            # Hybrid Score: Weighted combination of both
-            combined_score = (bm25_weight * normalized_scores[0]) + (sbert_weight * normalized_scores[1])
-            print(f"score: {combined_score}")
-            return combined_score
-        except Exception as e:
-            raise ValueError(f"Error in normalising and combining scores{e}")
+        if (len(keywords) == 1) and " " not in keywords[0]:
+            relevance = get_term_frequency(web_text, keywords)
+        else: 
+            relevance = get_sbert_score(web_text, keywords)
 
     except Exception as e:
         print(f"Error in relevance function:{e}")
+    return relevance
 
 
-def findLinks(soup, homepage_url):
+def find_links(soup, homepage_url):
     links = []
     for link in soup.find_all('a'):
         l = link.get('href')
         if l:
             if (l[0] == '/'):
                 l = homepage_url + l
-            if(homepage_url not in l):
-                #this accounts for:
-                #javascript:void() links or similar
-                #URLs that take us outside of the website
+            if '#' in l:
+                continue
+            if '.pdf' in l:
                 continue
             links.append(l)
     
     return links
 
-def linkExists(url, seen):
+def link_exists(url, seen):
     for i in seen:
         if url in i:
             return True

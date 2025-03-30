@@ -12,6 +12,7 @@ from click_functions import onClick, onHover
 class GatherFrame(ctk.CTkFrame):
     def __init__(self, parent, controller, data_queue):
         super().__init__(parent)
+        self.parent = parent
         self.controller = controller
         self.data_queue = data_queue
         self.is_running = True
@@ -22,15 +23,18 @@ class GatherFrame(ctk.CTkFrame):
         self.canvas = FigureCanvasTkAgg(self.fig, self)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.ani = animation.FuncAnimation(self.fig, self.poll_data, interval=200, cache_frame_data=False)  # Update every second
-        self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self))
-        self.fig.canvas.mpl_connect("motion_notify_event", lambda event: onHover(event, self))
+        self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self, self.ax, self.fig))
+        self.fig.canvas.mpl_connect("motion_notify_event", lambda event: onHover(event, self, self.ax, self.fig))
         self.node_colours = []
+
+        self.stop_button = ctk.CTkButton(self, text="Stop", command=self.stop_gathering)
+        self.stop_button.pack(side=tk.BOTTOM, pady=10)
 
     def poll_data(self, frame=None):
         if not self.is_running:
             return
         try:
-            nodesCount = len(self.G.nodes)
+            nodes_count = len(self.G.nodes)
             while not self.data_queue.empty():
                 data = self.data_queue.get_nowait()
                 if data is None:
@@ -39,27 +43,27 @@ class GatherFrame(ctk.CTkFrame):
                     self.G.add_node(data.url)
                     if (data.parent != 0):
                         self.G.add_edge(data.url, data.parent.url)
-                    if (data.relevance >= 0.7):
-                        self.node_colours.append('red')
-                    elif(data.relevance <= 0.2):
+                    if (data.relevance >= 0.65):
                         self.node_colours.append('green')
+                    elif(data.relevance <= 0.2):
+                        self.node_colours.append('red')
                     else:
                         self.node_colours.append('orange')
                 
-
                 #add a colour to the colours array according to relevance
            
             if len(self.G.nodes) > 0:
                 if not self.pos:  
                     #first time layout is calculated
                     self.pos = nx.spring_layout(self.G, seed=42)
-                    print(f"Initial layout calculated: {self.pos}")
-                if(nodesCount < len(self.G.nodes)):
+
+                if(nodes_count < len(self.G.nodes)):
                     #only recalculate layout if new nodes have been added
                     self.pos = nx.spring_layout(self.G, pos=self.pos, iterations=5)
                 self.ax.clear()
                 nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = 100)
                 self.canvas.draw()
+
         except Exception as e:
                 print(f"UI error {e}")
 
@@ -70,3 +74,6 @@ class GatherFrame(ctk.CTkFrame):
         
         with self.data_queue.mutex:
             self.data_queue.queue.clear()
+        self.ax.clear()
+        self.controller.show_frame("OnStart")
+        

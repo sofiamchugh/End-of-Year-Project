@@ -2,8 +2,10 @@ import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 import node, gather
-from gather import UrlIsValid
+from gather import url_is_valid
 from urllib.parse import urlparse
+import time
+import azure.batch.models as batch_models
 
 def get_homepage(url):
     try:
@@ -16,6 +18,29 @@ def get_homepage(url):
     except Exception as e:
         return f"Error: {e}"
     
+def get_job_id(url, batch_client):
+    job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
+
+    try:
+        existing_job = batch_client.job.get(job_id)  # Check if job exists
+        print(f"Deleting existing job: {job_id}")
+        batch_client.job.delete(job_id)  # Delete the existing job
+        while True:
+            try:
+                batch_client.job.get(job_id)  # Check if job still exists
+                print(f"Waiting for job {job_id} to be deleted...")
+                time.sleep(5)  # Wait before checking again
+            except batch_models.BatchErrorException:
+                print(f"Job {job_id} deleted successfully.")
+                break
+    except batch_models.BatchErrorException as e:
+        if "The specified job does not exist" in str(e):
+            pass  
+        else:
+            raise  
+
+    return job_id
+
 
 class KeywordEntryWidget(ctk.CTkFrame):
     def __init__(self, parent):
@@ -122,17 +147,18 @@ class OnStartFrame(ctk.CTkFrame):
             messagebox.showwarning("Validation Error", "All fields are required!")
             return 0
         else:
-            if not UrlIsValid(first_url):
+            if not url_is_valid(first_url):
                 messagebox.showwarning("Please enter a valid URL")
                 return 0
        
 
             #define the keywords array
             #define the first node
-            homepage_url = get_homepage(first_url)
-            firstNode = node.Node(first_url, 0)
-            self.controller.gather(firstNode, keywords, homepage_url)
             self.controller.show_frame("Gathering")
+            homepage_url = get_homepage(first_url)
+            first_node = node.Node(first_url, 0)
+            job_id = get_job_id(first_node.url, self.controller.batch_client)
+            self.controller.gather(first_node, keywords, job_id, homepage_url)
             return 1
 
     
