@@ -156,7 +156,7 @@ class OnStartFrame(ctk.CTkFrame):
             #define the first node
             self.controller.show_frame("Gathering")
             homepage_url = get_homepage(first_url)
-            first_node = node.Node(first_url, 0)
+            first_node = node.Node(first_url, None)
             job_id = get_job_id(first_node.url, self.controller.batch_client)
             self.controller.gather(first_node, keywords, job_id, homepage_url)
             return 1

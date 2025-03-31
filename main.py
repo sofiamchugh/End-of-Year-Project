@@ -15,13 +15,9 @@ import azure.batch.models as batch_models
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from gather import link_exists
+from azure_config import command, load_config
 
 ctk.set_appearance_mode("light")
-
-def load_config():
-    with open('config.json') as f:
-        config = json.load(f)
-    return config
 
 config = load_config()
 
@@ -90,8 +86,7 @@ class App(ctk.CTk):
         def create_task(node):
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
             output_file = f"{task_id}.json"
-            command = f'pip install playwright bs4 && python worker.py "{node.url}" "{node.parent}" "{keywords}" "{homepage_url}" "{output_file}"'
-
+            #command_line = command + f" {node.url} {node.parent} {keywords} {homepage_url} {output_file} )"
             return batch_models.TaskAddParameter(id=task_id, command_line=command)
 
         def process_children(node, task_list):
@@ -103,7 +98,6 @@ class App(ctk.CTk):
         def download_blob_wrapper(task):
             node_url = task.id.replace('task-', '').replace('_', '/').replace('-', '.')
             blob_name = f"{node_url}.html" 
-            print(f"{blob_name}")
             return self.download_blob(blob_name)
         
 
@@ -112,7 +106,6 @@ class App(ctk.CTk):
         )
         
         self.batch_client.job.add(job)
-        print(f"added job {job_id}\n")
         
         first_blob_name = f"{first_node.url}.html"
         first_task = create_task(first_node)
