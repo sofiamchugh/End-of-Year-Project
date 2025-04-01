@@ -8,17 +8,20 @@ from gather import find_links, get_relevance
 from node import Node
 from azure_config import load_config 
 import logging
+import nltk
+nltk.download('punkt')
 
-logging.basicConfig(filename='D:\\batch\\repo\\worker_log.txt', level=logging.DEBUG)
+logging.basicConfig(filename='C:\\repo\\worker_log.txt', level=logging.DEBUG)
 logger = logging.getLogger()
 config = load_config()
 blob_service_client = BlobServiceClient.from_connection_string(config["azure-storage-connection-string"])
 
-def upload_to_blob(file_name, node):
+def upload_to_blob(file_name, node, links):
     """Uploads scraped data to Azure Blob Storage"""
     try:
         blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=file_name)
-        blob_client.upload_blob(node.node_as_json(), overwrite=True)
+        node_data = json.dumps(node.node_as_json(links))
+        blob_client.upload_blob(node_data, overwrite=True)
         logger.info(f"Uploaded {file_name} to Azure Blob Storage\n")
     except Exception as e:
         logger.error(f"Error uploading blob: {e}")
@@ -26,7 +29,7 @@ def upload_to_blob(file_name, node):
 
 def scrape(node_url, keywords, homepage_url, node_parent):
     logger.info(f"Processing {node_url}")
-    node = Node.node(node_url, node_parent)
+    node = Node(node_url, node_parent)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
@@ -42,7 +45,7 @@ def scrape(node_url, keywords, homepage_url, node_parent):
         links = find_links(soup, homepage_url)
 
         file_name = f"{node.url.replace('https://', '').replace('/', '_')}.html"
-        upload_to_blob(file_name, node)
+        upload_to_blob(file_name, node, links)
 
         return node, links
 

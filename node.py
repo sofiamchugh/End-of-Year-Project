@@ -20,7 +20,7 @@ class Node:
             "url": self.url,
             "parent": self.parent,
             "relevance": self.relevance, 
-            "content": self.content,  
+            "content": self.content.prettify(),  
             "links": links  
         }
         return node_data

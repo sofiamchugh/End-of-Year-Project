@@ -4,11 +4,10 @@ import validators
 from bs4 import BeautifulSoup
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
-from rank_bm25 import BM25Okapi
-from sklearn.preprocessing import MinMaxScaler
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from collections import Counter
+nltk.download('punkt_tab')
 nltk.download('punkt')
 
 # Load a transformer model for contextual similarity
