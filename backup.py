@@ -52,3 +52,5 @@ def worker(this_node):
                 print(f"Gathering error {e}")
                 self.show_frame("OnStart")
         self.executor.submit(worker, first_node)"""
+
+#C:\Windows\System32\cmd.exe /c "python C:\batch\worker\worker.py"

@@ -4,22 +4,15 @@ import customtkinter as ctk
 from on_start import OnStartFrame
 from visuals import GatherFrame
 import node
-import json
-import time
 from queue import Queue
 from bs4 import BeautifulSoup
-import azure.batch as batch
-from azure.storage.blob import BlobServiceClient
-import azure.batch.batch_auth as batch_auth
-import azure.batch.models as batch_models
+from playwright.sync_api import sync_playwright
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from gather import link_exists
-from azure_config import command, load_config
+from gather import link_exists, get_relevance, find_links
 
 ctk.set_appearance_mode("light")
 
-config = load_config()
 
 class App(ctk.CTk):
     def __init__(self):
@@ -35,10 +28,9 @@ class App(ctk.CTk):
             self.data_queue = Queue()
             self.seen = set()
             self.lock = threading.Lock()
-            #self.executor = ThreadPoolExecutor(max_workers = 3)
+            self.executor = ThreadPoolExecutor(max_workers = 3)
             self.init_frames()
             self.nodes = []
-            self.batch_client = self.init_batch_client()
 
     def init_frames(self):
           self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue, seen=self.seen)
@@ -52,84 +44,62 @@ class App(ctk.CTk):
       frame.tkraise()
       self.current_frame = frame_name
 
-    def init_batch_client(self):
-        """Initialize Azure Batch client"""
-        credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
-        return batch.BatchServiceClient(credentials, config["azure-batch-account-url"])
 
+    def gather(self, first_node, keywords, homepage_url):
     
-    def download_blob(self, blob_name):
-        """Downloads data from Azure Blob Storage"""
+        def worker(this_node):
+            try:
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)  # Launch browser in headless mode
+                    page = browser.new_page()
+                    page.goto(this_node.url)
+                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")  # Scroll to the bottom
+                    page.wait_for_load_state()
+                    text = page.content()
+                    browser.close()
+                    soup = BeautifulSoup(text, 'html.parser')
+                    #fetch web content and turn into beautiful soup object
 
-        blob_service_client = BlobServiceClient.from_connection_string(config["azure-storage-connection-string"])
-        blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob_name)
+                    if keywords: 
+                        this_node.set_relevance(get_relevance(soup, keywords))
 
-        downloaded_blob = blob_client.download_blob()
-        node_data = json.loads(downloaded_blob.readall())
-        print(f"Downloaded node {node_data['url']}\n")
-        node = node.Node(node_data['url'], node_data['parent'])
-        node.set_relevance(node_data['relevance'])
-        node.set_content(node_data['content'])
-        self.data_queue.put(node)
+                    else:
+                        this_node.set_relevance(0.5)
+                    
+                    this_node.set_content(soup)
+                    #run keyword search through soup
+                    links = find_links(soup, homepage_url)
+                    #find all links to other pages on the same website
+                    print(f"adding node {this_node.url} with relevance {this_node.relevance}\n")
 
-        for link in node_data['links']:
-            with self.lock:
-                if(link_exists(link, self.seen)==False):
-                    self.seen.add(link)
-                    child = node.Node(link, node)
-                    node.add_child(child)
+                    self.data_queue.put(this_node)
+                    self.seen.add(this_node.url)
+                    print("finding links")
+                    for linkFound in links:
+                        if(self.current_frame == "OnStartFrame"):
+                             break
+                        #for each link 
+                        with self.lock:
+                            if(link_exists(linkFound, self.seen)==False):
+                            #if we haven't processed this URL already
+                                child = node.Node(linkFound, this_node)
+                                #create a new node corresponding to URL 
+                                first_node.add_child(child)
+                                #add node to previous node's list of children
+                                self.executor.submit(worker, child)
+                                #submit node for processing
+                            
 
-        return node
-    
-    def gather(self, first_node, keywords, job_id, homepage_url):
-    
-        def create_task(node):
-            task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
-            output_file = f"{task_id}.json"
-            #command_line = command + f" {node.url} {node.parent} {keywords} {homepage_url} {output_file} )"
-            return batch_models.TaskAddParameter(id=task_id, command_line=command)
-
-        def process_children(node, task_list):
-            for child in node.children:
-                task = create_task(child)  # Create a task for this child
-                task_list.append(task)
-                process_children(child, task_list)
-
-        def download_blob_wrapper(task):
-            node_url = task.id.replace('task-', '').replace('_', '/').replace('-', '.')
-            blob_name = f"{node_url}.html" 
-            return self.download_blob(blob_name)
-        
-
-        job = batch_models.JobAddParameter(
-            id=job_id, pool_info=batch_models.PoolInformation(pool_id=config["pool-id"])
-        )
-        
-        self.batch_client.job.add(job)
-        
-        first_blob_name = f"{first_node.url}.html"
-        first_task = create_task(first_node)
-        self.batch_client.task.add(job_id, first_task)
-        first_node = self.download_blob(first_blob_name)
-        print("downloaded node 1")
-
-        tasks = []
-        process_children(first_node, tasks)
-
-        if tasks:
-            self.batch_client.task.add_collection(job_id, tasks)
-
-
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            nodes = list(executor.map(download_blob_wrapper, tasks))
+            except TypeError:
+                 print("invalid URL")
+                 self.show_frame("OnStart")
+            except Exception as e:
+                print(f"Gathering error {e}")
+                self.show_frame("OnStart")
+        self.executor.submit(worker, first_node)
 
     def on_closing(self):
         #cleanup when closing window
-        job_list = list(self.batch_client.job.list())  # Get all jobs
-
-        for job in job_list:
-            print(f"Deleting job: {job.id}")
-            self.batch_client.job.delete(job.id)
 
         for after_id in self.tk.call('after', 'info'):
             self.after_cancel(after_id) 
