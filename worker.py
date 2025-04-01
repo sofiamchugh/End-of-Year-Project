@@ -6,57 +6,63 @@ from azure.storage.blob import BlobServiceClient
 from bs4 import BeautifulSoup
 from gather import find_links, get_relevance
 from node import Node
-from azure_config import load_config 
 import logging
 import nltk
-nltk.download('punkt')
+from main import config, blob_service_client
 
-logging.basicConfig(filename='C:\\repo\\worker_log.txt', level=logging.DEBUG)
+nltk.download('punkt') #Download this before calling get_relevance as we are working inside a VM
+
+logging.basicConfig(filename='C:\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
 logger = logging.getLogger()
-config = load_config()
-blob_service_client = BlobServiceClient.from_connection_string(config["azure-storage-connection-string"])
 
 def upload_to_blob(file_name, node, links):
-    """Uploads scraped data to Azure Blob Storage"""
+    """Uploads node data to Azure Blob Storage"""
     try:
         blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=file_name)
         node_data = json.dumps(node.node_as_json(links))
         blob_client.upload_blob(node_data, overwrite=True)
         logger.info(f"Uploaded {file_name} to Azure Blob Storage\n")
+
     except Exception as e:
         logger.error(f"Error uploading blob: {e}")
 
 
-def scrape(node_url, keywords, homepage_url, node_parent):
+def scrape(node_url, keywords, node_parent):
+    """
+    Scrapes the data from a webpage, 
+    calculates its importance for the given keywords
+    and uploads everything to Azure to be downloaded by main.py.
+    """
     logger.info(f"Processing {node_url}")
-    node = Node(node_url, node_parent)
-    with sync_playwright() as p:
+    node = Node(node_url, node_parent) #initialize node
+
+    """Visit website and harvest data"""
+    with sync_playwright() as p: 
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(node.url)
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        page.wait_for_load_state()
-        text = page.content()
-        browser.close()
+        page.wait_for_load_state() #wait for all content to load
+        text = page.content() #get the web text
+        browser.close() #then exit
 
-        soup = BeautifulSoup(text, 'html.parser')
-        node.set_relevance(get_relevance(soup, keywords) if keywords else 0)
-        node.set_content(soup)
-        links = find_links(soup, homepage_url)
+    """Compute a relevance value (if keywords provided)"""
+    soup = BeautifulSoup(text, 'html.parser') #we turn the web text into a beautiful soup object
+    node.set_relevance(get_relevance(soup, keywords) if keywords else 0) #compute relevance (optional)
+    node.set_content(soup) #add soup object to node 
+    links = find_links(soup, node_url) #get a list of links to turn into children
 
-        file_name = f"{node.url.replace('https://', '').replace('/', '_')}.html"
-        upload_to_blob(file_name, node, links)
+    """Upload to Azure"""
+    file_name = f"{node.url.replace('https://', '').replace('/', '_')}.html"
+    upload_to_blob(file_name, node, links)
 
-        return node, links
+    return node, links
 
 if __name__ == "__main__":
-    print("Hello there")
     parser = argparse.ArgumentParser()
     parser.add_argument("node_url")
     parser.add_argument("node_parent")
     parser.add_argument("keywords")
-    parser.add_argument("homepage_url")
     args = parser.parse_args()
 
-  # Convert string to Node object
-    scraped_node, links = scrape(args.node_url, args.node_parent, args.keywords, args.homepage_url)
+    scraped_node, links = scrape(args.node_url, args.node_parent, args.keywords)
