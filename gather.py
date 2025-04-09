@@ -3,6 +3,7 @@ import re
 import validators
 from bs4 import BeautifulSoup
 import numpy as np
+from urllib.parse import urlparse, urlunparse, urljoin
 from sentence_transformers import SentenceTransformer, util
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -12,6 +13,31 @@ nltk.download('punkt')
 
 # Load a transformer model for contextual similarity
 model = SentenceTransformer("all-MiniLM-L6-v2")
+
+
+def remove_www(url):
+    parsed = urlparse(url)
+    netloc = parsed.netloc
+    if netloc.startswith('www.'):
+        netloc = netloc[4:]
+    # Reconstruct the URL with the modified netloc
+    new_url = parsed._replace(netloc=netloc)
+    return urlunparse(new_url)
+
+def process_url(url):
+    parsed = urlparse(url)
+    parsed = parsed._replace(query="", fragment="")
+    netloc = parsed.netloc
+    if netloc.startswith('www.'):
+        netloc = netloc[4:]
+    path = parsed.path.rstrip('/')
+    new_url = parsed._replace(netloc=netloc, path=path)
+    return urlunparse(new_url)
+
+
+def get_base_homepage(url):
+    netloc = urlparse(url).netloc
+    return f"{urlparse(url).scheme}://{netloc}"
 
 def strain_soup(soup):
     # Remove script elements and embedded content
@@ -97,23 +123,25 @@ def get_relevance(soup, keywords):
     return relevance
 
 
-def find_links(soup, homepage_url):
+def find_links(soup, url, homepage):
+
     links = []
     for link in soup.find_all('a'):
         l = link.get('href')
         if l:
-            if (l[0] == '/'):
-                l = homepage_url + l
+            l = urljoin(url, l)
             if '#' in l:
                 continue
             if '.pdf' in l:
                 continue
+            l = process_url(l)
+            if get_base_homepage(l) != get_base_homepage(homepage):
+                continue
             links.append(l)
-    
     return links
 
 def link_exists(url, seen):
     for i in seen:
-        if url in i:
+        if remove_www(url) in remove_www(i):
             return True
     return False

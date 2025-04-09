@@ -1,9 +1,9 @@
 from bs4 import BeautifulSoup
 class Node:
     def __init__(self, url, parent):
-        self.url = url
         self.parent = parent
         self.relevance = 0
+        self.url = url
         self.children = []
         self.content = None
     def add_child(self,child):

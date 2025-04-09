@@ -2,7 +2,7 @@ import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 import node, gather
-from gather import url_is_valid
+from gather import url_is_valid, process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
@@ -142,23 +142,20 @@ class OnStartFrame(ctk.CTkFrame):
     def submit_form(self, event=None):
         first_url = self.url_entry.get()
         keywords = self.keyword_entry.get_keywords()
-        print(f"keywords: {keywords}")
         if not first_url :
             messagebox.showwarning("Validation Error", "All fields are required!")
             return 0
         else:
             if not url_is_valid(first_url):
-                messagebox.showwarning("Please enter a valid URL")
+                messagebox.showwarning("Invalid URL", "Please enter a valid URL")
                 return 0
-       
-
             #define the keywords array
             #define the first node
-            self.controller.show_frame("Gathering")
-            homepage_url = get_homepage(first_url)
-            first_node = node.Node(first_url, None)
-            job_id = get_job_id(first_node.url, self.controller.batch_client)
-            self.controller.gather(first_node, keywords, job_id, homepage_url)
-            return 1
+       # self.controller.show_frame("Gathering")
+        first_url = process_url(first_url)
+        first_node = node.Node(first_url, None)
+            #job_id = get_job_id(first_node.url, self.controller.batch_client)
+        self.controller.gather(first_node, keywords)
+        return 1
 
     
