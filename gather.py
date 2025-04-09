@@ -40,6 +40,7 @@ def get_base_homepage(url):
     return f"{urlparse(url).scheme}://{netloc}"
 
 def strain_soup(soup):
+    """Pre-processing to remove unnecessary content before trying to calculate relevance"""
     # Remove script elements and embedded content
     for tag in soup(["script", "style", "iframe"]):
         tag.decompose()
@@ -58,35 +59,35 @@ def strain_soup(soup):
         "skip to content",
         "skip to footer",
         "link copied"
-    ]
+    ] 
+
     web_text = soup.get_text(separator=" ")  
     web_text = re.sub(r'\s+', ' ', web_text).strip()
     for text in unwanted_texts:
-        web_text = re.sub(text, '', web_text, flags=re.IGNORECASE)
-    web_text = web_text.lower()
+        web_text = re.sub(text, '', web_text, flags=re.IGNORECASE) #Take out text describing bot actions (i.e. copying links)
+    web_text = web_text.lower() #make everything lowercase
 
-    return sent_tokenize(web_text)
+    return sent_tokenize(web_text) #tokenize before using Sentence-BERT algorithm
 
 def url_is_valid(url):
     return validators.url(url)
 
 def get_sbert_score(text, keywords):
+    """This is the primary function used to compute relevance"""
     try:
         # Compute SBERT similarity
             sentence_embedding = model.encode(text, convert_to_tensor=True)
-          #  web_embedding = sentence_embedding.mean(dim=0)
             keyword_embedding = model.encode(" ".join(keywords), convert_to_tensor=True)
             sbert_scores = util.pytorch_cos_sim(sentence_embedding, keyword_embedding)
-
             return sbert_scores.max().item()
     except Exception as e:
         raise ValueError(f"Error in computing SBERT similarity:{e}")
     
 def get_term_frequency(text, keyword):
     """
-    S-BERT needs at least two keywords to score texts in a way that suits our purposes,
-    so for a single keyword we compute the term frequency.
-    The TF is very crudely normalized to return scores similar to the ranges of the S-BERT algorithm.
+    Too few keywords make Sentence-BERT less accurate, so we use the more crude method 
+    of computing term frequency and approximating what levels of frequency constitute 
+    what size of relevance.
     """
     try:
         words = [word.lower() for sentence in text for word in word_tokenize(sentence)]
@@ -107,6 +108,7 @@ def get_term_frequency(text, keyword):
         raise ValueError(f"Error in getting term frequency: {e}")
 
 def get_relevance(soup, keywords):
+    """Pre-process the text then decide which algorithm to use and return its output."""
     relevance = 0
     try: 
         web_text = strain_soup(soup)
@@ -141,6 +143,7 @@ def find_links(soup, url, homepage):
     return links
 
 def link_exists(url, seen):
+    """Check if this URL already has a node associated with it."""
     for i in seen:
         if remove_www(url) in remove_www(i):
             return True
