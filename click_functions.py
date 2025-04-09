@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 import customtkinter as ctk
 from playwright.sync_api import sync_playwright
 
@@ -70,10 +71,10 @@ class NodePopup:
             return
         self.window = ctk.CTkToplevel()
         self.window.title(f"Information")
-        self.window.geometry("200x100")
+        self.window.geometry("400x200")
         self.window.wm_transient()
 
-        link_button = ctk.CTkButton(self.window, text="Follow link", command=self.open_url)
+        link_button = ctk.CTkButton(self.window, text="Follow link", command=lambda: self.open_url(False))
         save_button = ctk.CTkButton(self.window, text="Download contents of webpage", command=self.download)
         close_button = ctk.CTkButton(self.window, text="Close", command=self.window.destroy)
         link_button.pack(pady=5)
@@ -81,15 +82,27 @@ class NodePopup:
         close_button.pack(pady=5)
 
     
-    def open_url(self):
+    def open_url(self, headless):
+        print("opening a URL")
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch() 
+                browser = p.chrome.launch(headless=headless) 
                 page = browser.new_page()
-                page.goto(self.node.url)
-
+                page.goto(self.node)
+                return page, browser
         except Exception as e:
             print(f"Failed to open url: {e}")
 
     def download(self):
-        return self.node.content
+        print("doing a download")
+        url = self.node.replace('https://', '').replace('/', '_').replace('.', '_')
+        page, browser = self.open_url(True)
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")  # Scroll to the bottom
+        page.wait_for_load_state()
+        text = page.content()
+        browser.close()
+
+        filename = f"{url}.txt"
+        f = open(filename, "w")
+        f.write(text)
+        messagebox.showwarning("Saved")

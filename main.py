@@ -1,4 +1,3 @@
-import tkinter as tk
 from tkinter import *
 import customtkinter as ctk
 from on_start import OnStartFrame
@@ -12,8 +11,14 @@ from azure.storage.blob import BlobServiceClient
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
 import threading
+from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor
-from gather import link_exists
+from gather import link_exists, get_relevance, find_links
+import logging
+logging.basicConfig(filename="log.txt",
+                    filemode='w',
+                    format='%(message)s',
+                    level=logging.DEBUG)
 
 ctk.set_appearance_mode("light") 
 
@@ -29,21 +34,35 @@ blob_service_client = BlobServiceClient.from_connection_string(config["azure-sto
 
 class App(ctk.CTk):
     def __init__(self):
-        super().__init__()
-        self.title("Gather")
-        self.geometry("800x600")
-        self.container = ctk.CTkFrame(self)
-        self.container.grid(row=0, column=0, sticky="nsew")
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.current_frame = "OnStart"
-        self.frames = {}
-        self.data_queue = Queue()
-        self.seen = set() #tracks which webpages have already been processed
-        self.lock = threading.Lock()
-        self.nodes = [] #tracks nodes for the purpose of rendering sitemap
-        self.init_frames()
-        self.batch_client = self.init_batch_client()
+            super().__init__()
+            self.title("Gather")
+            self.geometry("800x600")
+            self.container = ctk.CTkFrame(self)
+            self.container.grid(row=0, column=0, sticky="nsew")
+            self.grid_rowconfigure(0, weight=1)
+            self.grid_columnconfigure(0, weight=1)
+            self.current_frame = "OnStartFrame"
+            self.frames = {}
+            self.futures = set()
+            self.data_queue = Queue()
+            self.seen = set()
+            self.lock = threading.Lock()
+            self.executor = ThreadPoolExecutor(max_workers = 3)
+            self.init_frames()
+            self.nodes = []
+            self.job_start_time = 0
+            self.batch_client = self.init_batch_client()
+    
+    
+    
+    def check_if_finished(self):
+        all_done = all(f.done() for f in self.futures.copy())
+        if all_done:
+            job_end_time = time.time()
+            print(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen)}")
+        # Do any post-processing here
+        else:
+            self.after(500, self.check_if_finished)
 
     def init_frames(self):
         """Each frame is a class that defines a Custom TKInter layout and the relevant functions."""
