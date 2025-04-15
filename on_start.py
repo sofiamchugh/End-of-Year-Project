@@ -1,12 +1,11 @@
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-import node, gather
-from gather import url_is_valid, process_url
+import node, util
+from util import url_is_valid, process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
-    
 def get_job_id(url, batch_client):
     """Names the job according to the supplied URL and checks that it does not exist already."""
     job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
@@ -145,6 +144,7 @@ class OnStartFrame(ctk.CTkFrame):
             #define the first node
        # self.controller.show_frame("Gathering")
         first_url = process_url(first_url)
+        self.controller.get_robot_rules(first_url)
         first_node = node.Node(first_url, None)
         job_id = get_job_id(first_node.url, self.controller.batch_client)
         self.controller.gather(first_node, keywords)
