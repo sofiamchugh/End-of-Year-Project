@@ -30,22 +30,26 @@ class GatherFrame(ctk.CTkFrame):
 
         
     def poll_data(self, frame=None):
+        """
+        Each node is added to a data queue when it has been fully processed. 
+        This function renders nodes as part of the sitemap as they are added to the queue.
+        """
         if not self.is_running:
             return
         try:
             nodes_count = len(self.G.nodes)
             if not self.data_queue.empty():
-                data = self.data_queue.get_nowait()
-                self.timeNoNodes = 0
+                data = self.data_queue.get_nowait() #get nodes from queue
                 if data is None:
                     return
                 if data.url is None:
                     return
-                if data.url not in self.G.nodes:
+                if data.url not in self.G.nodes: #double check there is no node with this URL already
                     self.G.add_node(data.url)
-                    if (data.parent != None):
-                        self.G.add_edge(data.url, data.parent.url)
-                    if (data.relevance >= 0.65):
+                    if (data.parent != None): #this is just for the root node, which has no parent
+                        self.G.add_edge(data.url, data.parent.url) #all other nodes should have edges
+                    
+                    if (data.relevance >= 0.65): #colour coding
                         self.node_colours.append('green')
                     elif(data.relevance <= 0.2):
                         self.node_colours.append('red')
@@ -64,13 +68,14 @@ class GatherFrame(ctk.CTkFrame):
         
             if len(self.G.nodes) > 0:
                 if not self.pos:  
-                    #first time layout is calculated
+                    #we initialize the layout differently from how we update it
                     self.pos = nx.spring_layout(self.G, seed=42)
                 
                 if(nodes_count < len(self.G.nodes)):
-                    #only recalculate layout if new nodes have been added
+                    #recalculate layout if new nodes have been added
                     self.pos = nx.spring_layout(self.G, pos=self.pos, iterations=5)
-
+                
+                #render changes
                 self.ax.clear()
 
                 nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = node_size)

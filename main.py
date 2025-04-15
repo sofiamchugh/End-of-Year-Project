@@ -2,9 +2,14 @@ from tkinter import *
 import customtkinter as ctk
 from on_start import OnStartFrame
 from visuals import GatherFrame
-import node
+from node import Node
+import json
 import time
 from queue import Queue
+import azure.batch as batch
+from azure.storage.blob import BlobServiceClient
+import azure.batch.batch_auth as batch_auth
+import azure.batch.models as batch_models
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, TimeoutError
 import threading
@@ -46,6 +51,8 @@ class App(ctk.CTk):
                 "crawl_delay": 3 #default value if none specified
             })
             self.job_start_time = 0
+            self.batch_client = self.init_batch_client()
+    
     
     def get_robot_rules(self, url):
         #we need the homepage of the website
@@ -115,14 +122,15 @@ class App(ctk.CTk):
             self.after(500, self.check_if_finished)
 
     def init_frames(self):
-          self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue, seen=self.seen)
-          self.frames["Gathering"] = GatherFrame(parent=self.container, controller=self, data_queue=self.data_queue)
-         # self.frames["Loading"] = LoadFrame(parent=self.container, controller=self )
-          for frame in self.frames.values():
-                frame.grid(row=0, column=0, sticky="nsew")
-          self.show_frame("OnStart")
+        """Each frame is a class that defines a Custom TKInter layout and the relevant functions."""
+        self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue, seen=self.seen)
+        self.frames["Gathering"] = GatherFrame(parent=self.container, controller=self, data_queue=self.data_queue)
+        for frame in self.frames.values():
+            frame.grid(row=0, column=0, sticky="nsew")
+        self.show_frame("OnStart")
 
     def show_frame(self, frame_name):
+        """Change which layout is active."""
         frame = self.frames[frame_name]
         frame.tkraise()
         self.current_frame = frame_name
@@ -248,14 +256,19 @@ class App(ctk.CTk):
         self.check_if_finished()
 
     def on_closing(self):
-        #cleanup when closing window
+        """Cleanup when closing window."""
+        job_list = list(self.batch_client.job.list())  # Get all jobs
+
+        for job in job_list:
+            print(f"Deleting job: {job.id}") 
+            self.batch_client.job.delete(job.id) #delete job when done
 
         for after_id in self.tk.call('after', 'info'):
             self.after_cancel(after_id) 
-        self.executor.shutdown(wait=False)
-        self.unbind_all("<Destroy>")
+        self.unbind_all("<Destroy>") 
         self.quit()
 
+"""App runs here"""
 app = App()
 app.protocol("WM_DELETE_WINDOW", app.on_closing)
 app.mainloop()

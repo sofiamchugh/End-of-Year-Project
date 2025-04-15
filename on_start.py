@@ -6,10 +6,8 @@ from util import url_is_valid, process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
-
-
-
 def get_job_id(url, batch_client):
+    """Names the job according to the supplied URL and checks that it does not exist already."""
     job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
 
     try:
@@ -34,6 +32,7 @@ def get_job_id(url, batch_client):
 
 
 class KeywordEntryWidget(ctk.CTkFrame):
+    """Custom CTK widget for adding and removing keywords."""
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
         self.keywords  = []
@@ -83,6 +82,8 @@ class KeywordEntryWidget(ctk.CTkFrame):
             return self.keywords
 
 class OnStartFrame(ctk.CTkFrame):
+    """The frame for the layout that displays when app is first opened 
+    or when a gathering process is stopped/finished."""
     def __init__(self, parent, controller, data_queue, seen):
         super().__init__(parent)
 
@@ -96,9 +97,7 @@ class OnStartFrame(ctk.CTkFrame):
         parent.columnconfigure(0,weight=1)
 
         self.columnconfigure(0, weight=1)
-        #self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
-       # self.rowconfigure(1, weight=1)
 
         self.inner_frame=ctk.CTkFrame(self)
         self.inner_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
@@ -117,7 +116,7 @@ class OnStartFrame(ctk.CTkFrame):
         submit_button = ctk.CTkButton(self.inner_frame, text="Go", command=self.submit_form, width=50)
         submit_button.grid(row=0, column=2, columnspan=2, pady=20)
 
-        self.url_entry.bind("<Control-z>", self.undo)
+        self.url_entry.bind("<Control-z>", self.undo) 
         self.url_entry.bind("<Return>", self.submit_form) 
         self.keyword_entry.bind("<Return>", self.submit_form)
         self.url_entry.bind("<KeyRelease>", self.on_change)
@@ -133,7 +132,8 @@ class OnStartFrame(ctk.CTkFrame):
     def submit_form(self, event=None):
         first_url = self.url_entry.get()
         keywords = self.keyword_entry.get_keywords()
-        if not first_url :
+
+        if not first_url : #check that a URL was provided
             messagebox.showwarning("Validation Error", "All fields are required!")
             return 0
         else:
@@ -146,7 +146,7 @@ class OnStartFrame(ctk.CTkFrame):
         first_url = process_url(first_url)
         self.controller.get_robot_rules(first_url)
         first_node = node.Node(first_url, None)
-            #job_id = get_job_id(first_node.url, self.controller.batch_client)
+        job_id = get_job_id(first_node.url, self.controller.batch_client)
         self.controller.gather(first_node, keywords)
         return 1
 

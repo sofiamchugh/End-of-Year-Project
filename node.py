@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 class Node:
     def __init__(self, url, parent):
         self.parent = parent
