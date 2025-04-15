@@ -217,7 +217,7 @@ class App(ctk.CTk):
 
                                 if process_link:
                                     if self.url_is_allowed(l):
-                                        child = node.Node(l, this_node)
+                                        child = Node(l, this_node)
                                         #create a new node corresponding to URL 
                                         first_node.add_child(child)
                                         #add node to previous node's list of children
