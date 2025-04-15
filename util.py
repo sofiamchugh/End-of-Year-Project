@@ -1,6 +1,7 @@
 import node
 import re
 import validators
+import requests
 from bs4 import BeautifulSoup
 import numpy as np
 from urllib.parse import urlparse, urlunparse, urljoin
@@ -33,7 +34,6 @@ def process_url(url):
     path = parsed.path.rstrip('/')
     new_url = parsed._replace(netloc=netloc, path=path)
     return urlunparse(new_url)
-
 
 def get_base_homepage(url):
     netloc = urlparse(url).netloc
@@ -121,24 +121,6 @@ def get_relevance(soup, keywords):
     except Exception as e:
         print(f"Error in relevance function:{e}")
     return relevance
-
-
-def find_links(soup, url, homepage):
-
-    links = []
-    for link in soup.find_all('a'):
-        l = link.get('href')
-        if l:
-            l = urljoin(url, l)
-            if '#' in l:
-                continue
-            if '.pdf' in l:
-                continue
-            l = process_url(l)
-            if get_base_homepage(l) != get_base_homepage(homepage):
-                continue
-            links.append(l)
-    return links
 
 def link_exists(url, seen):
     for i in seen:

@@ -1,23 +1,14 @@
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-import node, gather
-from gather import url_is_valid, process_url
+import node, util
+from util import url_is_valid, process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
 
-def get_homepage(url):
-    try:
-        parsed_url = urlparse(url)
-        if not parsed_url.scheme or not parsed_url.netloc:
-            raise ValueError("Invalid URL")
-        # Construct the homepage URL
-        homepage_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        return homepage_url
-    except Exception as e:
-        return f"Error: {e}"
-    
+
+
 def get_job_id(url, batch_client):
     job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
 
@@ -153,6 +144,7 @@ class OnStartFrame(ctk.CTkFrame):
             #define the first node
        # self.controller.show_frame("Gathering")
         first_url = process_url(first_url)
+        self.controller.get_robot_rules(first_url)
         first_node = node.Node(first_url, None)
             #job_id = get_job_id(first_node.url, self.controller.batch_client)
         self.controller.gather(first_node, keywords)
