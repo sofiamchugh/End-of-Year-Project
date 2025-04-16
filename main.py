@@ -18,15 +18,23 @@ from concurrent.futures import ThreadPoolExecutor
 from util import get_relevance, process_url, get_base_homepage, url_is_valid
 import logging
 from collections import defaultdict
-logging.basicConfig(filename="log.txt",
-                    filemode='w',
-                    format='%(asctime)s: %(message)s',
-                    level=logging.DEBUG)
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-logging.getLogger('customtkinter').setLevel(logging.WARNING)
-logging.getLogger('PIL').setLevel(logging.WARNING)
-ctk.set_appearance_mode("light")
-WORKER_COUNT = 5
+
+
+WORKER_COUNT = 7
+def logging_init(url):
+    parsed_url = urlparse(url)
+    host = parsed_url.netloc
+    partial_url = host.split('.')[0]
+    filename=partial_url + "_" + str(WORKER_COUNT) + ".txt"
+    logging.basicConfig(filename=filename,
+                        filemode='a',format='%(asctime)s: %(message)s',
+                        level=logging.DEBUG)
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    logging.getLogger('customtkinter').setLevel(logging.WARNING)
+    logging.getLogger('PIL').setLevel(logging.WARNING)
+    ctk.set_appearance_mode("light")
+    return logging
+
 
 class App(ctk.CTk):
     def __init__(self):
@@ -51,8 +59,7 @@ class App(ctk.CTk):
                 "crawl_delay": 3 #default value if none specified
             })
             self.job_start_time = 0
-            self.batch_client = self.init_batch_client()
-    
+            self.dropped_nodes = 0
     
     def get_robot_rules(self, url):
         #we need the homepage of the website
@@ -116,8 +123,8 @@ class App(ctk.CTk):
         all_done = all(f.done() for f in self.futures.copy())
         if all_done:
             job_end_time = time.time()
-            print(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen)}")
-        # Do any post-processing here
+            print(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen) - self.dropped_nodes} pages. ")
+            logging.info(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen) - self.dropped_nodes} pages. ")
         else:
             self.after(500, self.check_if_finished)
 
@@ -137,10 +144,13 @@ class App(ctk.CTk):
 
     def gather(self, first_node, keywords):
         self.show_frame("Gathering")
+        self.executor = ThreadPoolExecutor(max_workers = WORKER_COUNT)
+        logging = logging_init(first_node.url)
+        logging.info(f"\n\nStarting crawl of {first_node.url}\n \n")
         self.job_start_time = time.time()
         user_agent = "*"
         retry_attempts = 3  
-        dropped_pages = 0
+        self.dropped_nodes = 0
         def worker(this_node):
             crawl_delay = self.rules[user_agent]["crawl_delay"]
             for attempt in range(retry_attempts):
@@ -238,8 +248,7 @@ class App(ctk.CTk):
                             continue
                     if attempt + 1 == retry_attempts:
                         logging.debug(f"Abandoning node {this_node.url} due to too many failed attempts.")
-                        dropped_pages +=1
-                        print(f"dropped {dropped_pages} pages\n")
+                        self.dropped_nodes +=1
                         
                         break
                 except Exception as e:
