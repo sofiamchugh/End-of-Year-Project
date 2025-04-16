@@ -14,16 +14,6 @@ nltk.download('punkt')
 # Load a transformer model for contextual similarity
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-
-def remove_www(url):
-    parsed = urlparse(url)
-    netloc = parsed.netloc
-    if netloc.startswith('www.'):
-        netloc = netloc[4:]
-    # Reconstruct the URL with the modified netloc
-    new_url = parsed._replace(netloc=netloc)
-    return urlunparse(new_url)
-
 def process_url(url):
     parsed = urlparse(url)
     parsed = parsed._replace(query="", fragment="")

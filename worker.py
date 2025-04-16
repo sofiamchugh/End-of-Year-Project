@@ -40,7 +40,20 @@ def scrape(node_url, keywords, node_parent):
     with sync_playwright() as p: 
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(node.url)
+        response = page.goto(node.url, timeout=20000)
+        if response is None:
+            return 0
+        
+        content_type = response.headers.get('content-type', '')
+
+        if not 'text/html' in content_type:
+            print(f"{node.url} not HTML")
+            return 0
+                        
+        status_code = response.status if response else None
+
+        if status_code and status_code >= 400:  # Flag errors
+            logging.warning(f"Warning: HTTP {status_code} \n")
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         page.wait_for_load_state() #wait for all content to load
         text = page.content() #get the web text

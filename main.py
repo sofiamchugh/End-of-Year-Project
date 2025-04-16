@@ -13,8 +13,10 @@ import azure.batch.models as batch_models
 import threading
 from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor
-from gather import link_exists, get_relevance, find_links
+from playwright.sync_api import sync_playwright, TimeoutError
+from gather import get_relevance, process_url, get_base_homepage, url_is_valid
 import logging
+from collections import defaultdict
 logging.basicConfig(filename="log.txt",
                     filemode='w',
                     format='%(message)s',
@@ -52,8 +54,71 @@ class App(ctk.CTk):
             self.nodes = []
             self.job_start_time = 0
             self.batch_client = self.init_batch_client()
-    
-    
+            self.rules = defaultdict(lambda: {
+                "disallow": [],
+                "allow": [],
+                "crawl_delay": 3 #default value if none specified
+            })
+            self.job_start_time = 0
+            self.dropped_nodes = 0
+
+    def get_robot_rules(self, url):
+        #we need the homepage of the website
+        url = get_base_homepage(url)
+        with sync_playwright() as p:
+            new_request = p.request.new_context()
+
+            if not url.endswith("/"):
+                url += "/"
+            robots_url = url + "robots.txt"
+
+            response = new_request.get(robots_url)
+            if response.ok:
+                text = response.text()
+                for line in text.splitlines():
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+
+                    if ':' not in line:
+                        continue
+
+                    key, value = map(str.strip, line.split(':', 1))
+                    key = key.lower()
+
+                    if key == "user-agent":
+                        current_user_agents = [value]
+                    elif key in ("disallow", "allow", "crawl-delay"):
+                        for agent in current_user_agents:
+                            if key == "disallow":
+                                self.rules[agent]["disallow"].append(value)
+                            elif key == "allow":
+                                self.rules[agent]["allow"].append(value)
+                            elif key == "crawl-delay":
+                                try:
+                                    self.rules[agent]["crawl_delay"] = float(value)
+                                except ValueError:
+                                    pass  # skip bad crawl-delay value
+            else:
+                print(f"Failed to fetch robots.txt. Status: {response.status}")
+
+            new_request.dispose()
+
+    def url_is_allowed(self, url):
+        url = urlparse(url)
+        path = url.path
+
+        rules = self.rules.get("*")
+        if not rules:
+            return True
+        
+        allow_matches = [rule for rule in rules["allow"] if path.startswith(rule)]
+        disallow_matches = [rule for rule in rules["disallow"] if path.startswith(rule)]
+
+        longest_allow = max((len(rule) for rule in allow_matches), default=0)
+        longest_disallow = max((len(rule) for rule in disallow_matches), default=0)
+
+        return longest_allow >= longest_disallow
     
     def check_if_finished(self):
         all_done = all(f.done() for f in self.futures.copy())
@@ -97,15 +162,19 @@ class App(ctk.CTk):
         #turn links into child nodes if they aren't already
         for link in node_data['links']:
             with self.lock:
-                if(link_exists(link, self.seen)==False):
-                    self.seen.add(link)
-                    child = node.Node(link, node)
-                    node.add_child(child)
+                if link not in self.seen:
+                    if self.url_is_allowed(link):
+                        self.seen.add(link)
+                        child = node.Node(link, node)
+                        node.add_child(child)
 
         return node
     
     def gather(self, first_node, keywords, job_id):
-    
+        user_agent = "*"
+        retry_attempts = 3  
+        self.dropped_nodes = 0
+        crawl_delay = self.rules[user_agent]["crawl_delay"]
         def create_task(node):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
