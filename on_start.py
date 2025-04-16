@@ -146,6 +146,7 @@ class OnStartFrame(ctk.CTkFrame):
        # self.controller.show_frame("Gathering")
         first_url = process_url(first_url)
         first_node = node.Node(first_url, None)
+        self.controller.get_robot_rules(first_url)
         job_id = get_job_id(first_node.url, self.controller.batch_client)
         self.controller.gather(first_node, keywords)
         return 1

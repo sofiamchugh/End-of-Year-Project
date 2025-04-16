@@ -14,12 +14,12 @@ class Node:
     def set_coords(self, x, y):
         self.x = x
         self.y = y
-    def node_as_json(self, links):
+    def node_as_json(self, links, crawl_delay):
         node_data = {
             "url": self.url,
             "parent": self.parent,
             "relevance": self.relevance, 
-            "content": self.content.prettify(),  
-            "links": links  
+            "links": links  ,
+            "crawl_delay": crawl_delay
         }
         return node_data

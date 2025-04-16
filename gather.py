@@ -12,7 +12,7 @@ nltk.download('punkt_tab')
 nltk.download('punkt')
 
 # Load a transformer model for contextual similarity
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
 def process_url(url):
     parsed = urlparse(url)
@@ -115,7 +115,7 @@ def get_relevance(soup, keywords):
     return relevance
 
 
-def find_links(soup, url, homepage):
+def find_links(soup, url):
 
     links = []
     for link in soup.find_all('a'):
@@ -127,7 +127,7 @@ def find_links(soup, url, homepage):
             if '.pdf' in l:
                 continue
             l = process_url(l)
-            if get_base_homepage(l) != get_base_homepage(homepage):
+            if get_base_homepage(l) != get_base_homepage(url):
                 continue
             links.append(l)
     return links

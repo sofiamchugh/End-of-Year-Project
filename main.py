@@ -125,7 +125,6 @@ class App(ctk.CTk):
         if all_done:
             job_end_time = time.time()
             print(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen)}")
-        # Do any post-processing here
         else:
             self.after(500, self.check_if_finished)
 
@@ -148,7 +147,7 @@ class App(ctk.CTk):
         credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
         return batch.BatchServiceClient(credentials, config["azure-batch-account-url"])
 
-    def download_blob(self, blob_name):
+    def download_blob(self, blob_name, crawl_delay):
         """Download blobs from Azure and converts them to nodes to be displayed in-app. """
 
         blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob_name)
@@ -156,9 +155,15 @@ class App(ctk.CTk):
         node_data = json.loads(downloaded_blob.readall()) #Parse JSON object
         node = Node(node_data['url'], node_data['parent']) #Initialize Node object
         node.set_relevance(node_data['relevance']) 
-        node.set_content(node_data['content'])
         self.data_queue.put(node) #Put node in queue to be added to graph
 
+        new_delay = (node_data['crawl_delay'])
+        if new_delay > crawl_delay:
+            current_delay = self.rules['*']['crawl_delay']
+                with self.lock:
+                    if current_delay == crawl_delay:
+                        self.rules["*"]['crawl-delay'] = new_delay
+                        
         #turn links into child nodes if they aren't already
         for link in node_data['links']:
             with self.lock:
@@ -174,11 +179,13 @@ class App(ctk.CTk):
         user_agent = "*"
         retry_attempts = 3  
         self.dropped_nodes = 0
-        crawl_delay = self.rules[user_agent]["crawl_delay"]
+        self.job_start_time = time.time()
+        
         def create_task(node):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
-            command =  f"worker.py {node.url} {node.parent} {keywords}" #this is what gets passed to the VM
+            crawl_delay = self.rules[user_agent]["crawl_delay"]
+            command =  f"worker.py {node.url} {node.parent} {keywords} {crawl_delay}" #this is what gets passed to the VM
             return batch_models.TaskAddParameter(id=task_id, command_line=command)
 
         def process_children(node, task_list):
@@ -192,7 +199,7 @@ class App(ctk.CTk):
             """Some pre-processing before we can use executor.map to download blobs."""
             node_url = task.id.replace('task-', '').replace('_', '/').replace('-', '.') #reformat the URL into task ID
             blob_name = f"{node_url}.html" 
-            return self.download_blob(blob_name)
+            return self.download_blob(blob_name, self.rules[user_agent]['crawl_delay'])
         
         """Create a job and add it to our Azure Batch Client."""
         job = batch_models.JobAddParameter(
@@ -204,7 +211,7 @@ class App(ctk.CTk):
         first_blob_name = f"{first_node.url}.html"
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-        first_node = self.download_blob(first_blob_name) #first_node now has children
+        first_node = self.download_blob(first_blob_name, self.rules[user_agent]['crawl_delay']) #first_node now has children
 
         """The rest of the webpage is processed recursively."""
         tasks = [] 
@@ -215,6 +222,8 @@ class App(ctk.CTk):
 
         with ThreadPoolExecutor(max_workers=5) as executor:
             nodes = list(executor.map(download_blob_wrapper, tasks))
+        
+        self.check_if_finished()
 
     def on_closing(self):
         """Cleanup when closing window."""
@@ -230,6 +239,7 @@ class App(ctk.CTk):
         self.quit()
 
 """App runs here"""
-app = App()
-app.protocol("WM_DELETE_WINDOW", app.on_closing)
-app.mainloop()
+if __name__ =="__main__":
+    app = App()
+    app.protocol("WM_DELETE_WINDOW", app.on_closing)
+    app.mainloop()
