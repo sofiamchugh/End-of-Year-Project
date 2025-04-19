@@ -1,0 +1,8 @@
+playwright
+bs4
+azure-batch
+azure-blob-storage
+azure-identity
+nltk
+sentence-transformers
+requests

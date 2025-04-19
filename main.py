@@ -92,7 +92,7 @@ class App(ctk.CTk):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
             crawl_delay = self.rules.crawl_delay
-            command_line =  f'/bin/bash -c"cd $AZ_BATCH_NODE_SHARED_DIR/repo && dir"' #git fetch && git pull && python3 worker.py {node.url} {node.parent} {keywords} {crawl_delay}"' #this is what gets passed to the VM
+            command_line =  f'/bin/bash -c "cd $AZ_BATCH_NODE_SHARED_DIR/repo && python3 worker.py {node.url} {node.parent} {keywords} {crawl_delay}"' #this is what gets passed to the VM
            
 
             return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
@@ -115,7 +115,6 @@ class App(ctk.CTk):
         """Create a job and add it to our Azure Batch Client."""
         try: 
             job_id = get_job_id(first_node.url, self.batch_client)
-            print(f"Job ID: {job_id}")
             job = batch_models.JobAddParameter(
                 id=job_id, pool_info=batch_models.PoolInformation(pool_id=config["pool-id"])
             )
