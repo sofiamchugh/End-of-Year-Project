@@ -1,7 +1,7 @@
 playwright
 bs4
 azure-batch
-azure-blob-storage
+azure-storage-blob
 azure-identity
 nltk
 sentence-transformers
