@@ -8,13 +8,6 @@ import customtkinter as ctk
 import numpy as np
 from click_functions import onClick, onHover
 
-"""class LoadFrame(ctk.CTkFrame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.parent = parent
-        self.controller = controller
-        self.test = ctk.CTkLabel(self, text="Loading...")
-        self.test.pack(side=tk.BOTTOM, pady=10)"""
 
 class GatherFrame(ctk.CTkFrame):
     def __init__(self, parent, controller, data_queue):

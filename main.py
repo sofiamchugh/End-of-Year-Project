@@ -14,25 +14,12 @@ import threading
 from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor
 from playwright.sync_api import sync_playwright, TimeoutError
-from gather import get_relevance, process_url, get_base_homepage, url_is_valid
 import logging
-from collections import defaultdict
-logging.basicConfig(filename="log.txt",
-                    filemode='w',
-                    format='%(message)s',
-                    level=logging.DEBUG)
+from user_agent import UserAgent
+from azure_config import config, blob_to_data, init_batch_client, node_from_json_data, get_job_id, url_as_blob_name
 
 ctk.set_appearance_mode("light") 
 
-#Load in variables for connecting to Azure
-def load_config():
-    with open('config.json') as f:
-        config = json.load(f)
-    return config
-config = load_config()
-
-#Initialize blob service client
-blob_service_client = BlobServiceClient.from_connection_string(config["azure-storage-connection-string"])
 
 class App(ctk.CTk):
     def __init__(self):
@@ -51,80 +38,16 @@ class App(ctk.CTk):
             self.lock = threading.Lock()
             self.executor = ThreadPoolExecutor(max_workers = 3)
             self.init_frames()
-            self.nodes = []
             self.job_start_time = 0
-            self.batch_client = self.init_batch_client()
-            self.rules = defaultdict(lambda: {
-                "disallow": [],
-                "allow": [],
-                "crawl_delay": 3 #default value if none specified
-            })
-            self.job_start_time = 0
-            self.dropped_nodes = 0
+            self.batch_client = init_batch_client()
+            self.rules = UserAgent()
 
-    def get_robot_rules(self, url):
-        #we need the homepage of the website
-        url = get_base_homepage(url)
-        with sync_playwright() as p:
-            new_request = p.request.new_context()
 
-            if not url.endswith("/"):
-                url += "/"
-            robots_url = url + "robots.txt"
-
-            response = new_request.get(robots_url)
-            if response.ok:
-                text = response.text()
-                for line in text.splitlines():
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-
-                    if ':' not in line:
-                        continue
-
-                    key, value = map(str.strip, line.split(':', 1))
-                    key = key.lower()
-
-                    if key == "user-agent":
-                        current_user_agents = [value]
-                    elif key in ("disallow", "allow", "crawl-delay"):
-                        for agent in current_user_agents:
-                            if key == "disallow":
-                                self.rules[agent]["disallow"].append(value)
-                            elif key == "allow":
-                                self.rules[agent]["allow"].append(value)
-                            elif key == "crawl-delay":
-                                try:
-                                    self.rules[agent]["crawl_delay"] = float(value)
-                                except ValueError:
-                                    pass  # skip bad crawl-delay value
-            else:
-                print(f"Failed to fetch robots.txt. Status: {response.status}")
-
-            new_request.dispose()
-
-    def url_is_allowed(self, url):
-        url = urlparse(url)
-        path = url.path
-
-        rules = self.rules.get("*")
-        if not rules:
-            return True
-        
-        allow_matches = [rule for rule in rules["allow"] if path.startswith(rule)]
-        disallow_matches = [rule for rule in rules["disallow"] if path.startswith(rule)]
-
-        longest_allow = max((len(rule) for rule in allow_matches), default=0)
-        longest_disallow = max((len(rule) for rule in disallow_matches), default=0)
-
-        return longest_allow >= longest_disallow
-    
-    def check_if_finished(self):
+    def check_if_finished(self, start_time):
         all_done = all(f.done() for f in self.futures.copy())
         if all_done:
             job_end_time = time.time()
-            print(f"Job took {job_end_time - self.job_start_time} seconds. Processed {len(self.seen)}")
+            print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}")
         else:
             self.after(500, self.check_if_finished)
 
@@ -142,49 +65,33 @@ class App(ctk.CTk):
         frame.tkraise()
         self.current_frame = frame_name
 
-    def init_batch_client(self):
-        """Initialize Azure Batch client."""
-        credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
-        return batch.BatchServiceClient(credentials, config["azure-batch-account-url"])
+    def update_crawl_delay(self, new_delay, crawl_delay):
+        """This function ensures that if multiple workers with the same crawl_delay value 
+        need to increase the delay, that this only updates the user agent rules once."""
 
-    def download_blob(self, blob_name, crawl_delay):
+        if new_delay > crawl_delay:
+            current_delay = self.rules.crawl_delay
+            with self.lock:
+                if current_delay == crawl_delay:
+                    self.rules.crawl_delay = new_delay
+
+    def process_azure_info(self, blob_name):
         """Download blobs from Azure and converts them to nodes to be displayed in-app. """
 
-        blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob_name)
-        downloaded_blob = blob_client.download_blob() #Download blob from Azure container
-        node_data = json.loads(downloaded_blob.readall()) #Parse JSON object
-        node = Node(node_data['url'], node_data['parent']) #Initialize Node object
-        node.set_relevance(node_data['relevance']) 
-        self.data_queue.put(node) #Put node in queue to be added to graph
+        data = blob_to_data(blob_name) #downloads blob from azure
+        node = node_from_json_data(data, self.seen, self.lock, self.rules) #gets node from data
+        self.data_queue.put(node) # Put node in queue to be added to graph
 
-        new_delay = (node_data['crawl_delay'])
-        if new_delay > crawl_delay:
-            current_delay = self.rules['*']['crawl_delay']
-                with self.lock:
-                    if current_delay == crawl_delay:
-                        self.rules["*"]['crawl-delay'] = new_delay
-                        
-        #turn links into child nodes if they aren't already
-        for link in node_data['links']:
-            with self.lock:
-                if link not in self.seen:
-                    if self.url_is_allowed(link):
-                        self.seen.add(link)
-                        child = node.Node(link, node)
-                        node.add_child(child)
-
-        return node
+        new_delay = data["crawl_delay"] 
+        return node, new_delay
     
-    def gather(self, first_node, keywords, job_id):
-        user_agent = "*"
-        retry_attempts = 3  
-        self.dropped_nodes = 0
-        self.job_start_time = time.time()
+    def orchestrate_workers(self, first_node, keywords):
+        start_time = time.time()
         
         def create_task(node):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
-            crawl_delay = self.rules[user_agent]["crawl_delay"]
+            crawl_delay = self.rules.crawl_delay
             command =  f"worker.py {node.url} {node.parent} {keywords} {crawl_delay}" #this is what gets passed to the VM
             return batch_models.TaskAddParameter(id=task_id, command_line=command)
 
@@ -195,23 +102,26 @@ class App(ctk.CTk):
                 task_list.append(task)
                 process_children(child, task_list)
 
-        def download_blob_wrapper(task):
+        def get_blob(task):
             """Some pre-processing before we can use executor.map to download blobs."""
             node_url = task.id.replace('task-', '').replace('_', '/').replace('-', '.') #reformat the URL into task ID
-            blob_name = f"{node_url}.html" 
-            return self.download_blob(blob_name, self.rules[user_agent]['crawl_delay'])
+            blob_name = url_as_blob_name(node_url)
+            node, new_delay = self.process_azure_info(blob_name)
+            self.update_crawl_delay(new_delay, self.rules.crawl_delay)
+            return node
         
         """Create a job and add it to our Azure Batch Client."""
+        job_id = get_job_id(first_node.url, self.batch_client)
         job = batch_models.JobAddParameter(
             id=job_id, pool_info=batch_models.PoolInformation(pool_id=config["pool-id"])
         )
         self.batch_client.job.add(job)
         
         """The root node needs to be populated before we can start the recursive process_children function"""
-        first_blob_name = f"{first_node.url}.html"
+        first_blob_name = url_as_blob_name(first_node.url)
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-        first_node = self.download_blob(first_blob_name, self.rules[user_agent]['crawl_delay']) #first_node now has children
+        first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
 
         """The rest of the webpage is processed recursively."""
         tasks = [] 
@@ -220,10 +130,10 @@ class App(ctk.CTk):
         if tasks:
             self.batch_client.task.add_collection(job_id, tasks)
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            nodes = list(executor.map(download_blob_wrapper, tasks))
+        with self.executor as executor:
+            self.futures = list(executor.map(get_blob, tasks))
         
-        self.check_if_finished()
+        self.check_if_finished(start_time)
 
     def on_closing(self):
         """Cleanup when closing window."""

@@ -4,15 +4,15 @@ import time
 from playwright.sync_api import sync_playwright
 from azure.storage.blob import BlobServiceClient
 from bs4 import BeautifulSoup
-from gather import find_links, get_relevance
+from util import find_links, get_relevance
 from node import Node
 import logging
 import nltk
-from main import config, blob_service_client
+from azure_config import config, blob_service_client
 
 nltk.download('punkt') #Download this before calling get_relevance as we are working inside a VM
 
-logging.basicConfig(filename='C:\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
+logging.basicConfig(filename='C:\\batch\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
 logger = logging.getLogger()
 
 def upload_to_blob(file_name, node, links, crawl_delay):
@@ -57,8 +57,10 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
 
                 if status_code and status_code >= 400:  # Flag errors
                     logging.warning(f"Warning: HTTP {status_code} \n")
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+
+
                 page.wait_for_load_state() #wait for all content to load
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 text = page.content() #get the web text
                 browser.close() #then exit
 

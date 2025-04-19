@@ -1,8 +1,5 @@
-import node
 import re
-import validators
 from bs4 import BeautifulSoup
-import numpy as np
 from urllib.parse import urlparse, urlunparse, urljoin
 from sentence_transformers import SentenceTransformer, util
 import nltk
@@ -23,7 +20,6 @@ def process_url(url):
     path = parsed.path.rstrip('/')
     new_url = parsed._replace(netloc=netloc, path=path)
     return urlunparse(new_url)
-
 
 def get_base_homepage(url):
     netloc = urlparse(url).netloc
@@ -58,9 +54,6 @@ def strain_soup(soup):
     web_text = web_text.lower() #make everything lowercase
 
     return sent_tokenize(web_text) #tokenize before using Sentence-BERT algorithm
-
-def url_is_valid(url):
-    return validators.url(url)
 
 def get_sbert_score(text, keywords):
     """This is the primary function used to compute relevance"""
@@ -114,27 +107,21 @@ def get_relevance(soup, keywords):
         print(f"Error in relevance function:{e}")
     return relevance
 
-
 def find_links(soup, url):
 
     links = []
     for link in soup.find_all('a'):
         l = link.get('href')
+        filetypes = ['.pdf', '.doc', '.xlsx', '.png', '.jpeg', '.jpg']
         if l:
             l = urljoin(url, l)
             if '#' in l:
                 continue
-            if '.pdf' in l:
-                continue
+            for type in filetypes:
+                if type in l:
+                    continue
             l = process_url(l)
             if get_base_homepage(l) != get_base_homepage(url):
                 continue
             links.append(l)
     return links
-
-def link_exists(url, seen):
-    """Check if this URL already has a node associated with it."""
-    for i in seen:
-        if remove_www(url) in remove_www(i):
-            return True
-    return False

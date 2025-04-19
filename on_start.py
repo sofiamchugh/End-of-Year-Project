@@ -1,35 +1,15 @@
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-import node, gather
-from gather import url_is_valid, process_url
+import node
+import validators
+from util import process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
+from user_agent import UserAgent
     
-def get_job_id(url, batch_client):
-    """Names the job according to the supplied URL and checks that it does not exist already."""
-    job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
 
-    try:
-        existing_job = batch_client.job.get(job_id)  # Check if job exists
-        print(f"Deleting existing job: {job_id}")
-        batch_client.job.delete(job_id)  # Delete the existing job
-        while True:
-            try:
-                batch_client.job.get(job_id)  # Check if job still exists
-                print(f"Waiting for job {job_id} to be deleted...")
-                time.sleep(5)  # Wait before checking again
-            except batch_models.BatchErrorException:
-                print(f"Job {job_id} deleted successfully.")
-                break
-    except batch_models.BatchErrorException as e:
-        if "The specified job does not exist" in str(e):
-            pass  
-        else:
-            raise  
-
-    return job_id
 
 
 class KeywordEntryWidget(ctk.CTkFrame):
@@ -138,7 +118,7 @@ class OnStartFrame(ctk.CTkFrame):
             messagebox.showwarning("Validation Error", "All fields are required!")
             return 0
         else:
-            if not url_is_valid(first_url):
+            if not validators.url(first_url):
                 messagebox.showwarning("Invalid URL", "Please enter a valid URL")
                 return 0
             #define the keywords array
@@ -146,9 +126,8 @@ class OnStartFrame(ctk.CTkFrame):
        # self.controller.show_frame("Gathering")
         first_url = process_url(first_url)
         first_node = node.Node(first_url, None)
-        self.controller.get_robot_rules(first_url)
-        job_id = get_job_id(first_node.url, self.controller.batch_client)
-        self.controller.gather(first_node, keywords)
+        self.controller.rules.init_from_url(first_url)
+        self.controller.orchestrate_workers(first_node, keywords)
         return 1
 
     
