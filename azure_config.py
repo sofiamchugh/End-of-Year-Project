@@ -8,13 +8,13 @@ import time
 from datetime import datetime, timedelta, UTC
 from azure.identity import DefaultAzureCredential
 import requests
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(script_dir, 'config.json')
 
-def load_config():
-    with open('config.json') as f:
-        config = json.load(f)
-    return config
+with open(config_path) as f:
+    config = json.load(f)
 
-config = load_config()
 
 class Token:
     def __init__(self, credential, scope):
