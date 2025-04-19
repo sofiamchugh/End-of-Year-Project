@@ -127,6 +127,7 @@ class OnStartFrame(ctk.CTkFrame):
         first_url = process_url(first_url)
         first_node = node.Node(first_url, None)
         self.controller.rules.init_from_url(first_url)
+        print("done with robots.txt. Starting orchestrator \n")
         self.controller.orchestrate_workers(first_node, keywords)
         return 1
 

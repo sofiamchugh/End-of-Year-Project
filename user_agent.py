@@ -36,6 +36,7 @@ class UserAgent:
                     self.crawl_delay = float(value)
    
     def init_from_url(self, url):
+        print("Looking for robots.txt\n")
         url = get_base_homepage(url)
         with sync_playwright() as p:
             new_request = p.request.new_context()
@@ -47,6 +48,7 @@ class UserAgent:
             response = new_request.get(robots_url)
             if response.ok:
                 text = response.text()
+                print("Found robots.txt. Parsing now \n")
                 self.parse_robots_txt(text)
                         
             

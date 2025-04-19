@@ -5,6 +5,9 @@ import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
 from node import Node
 import time
+from datetime import datetime, timedelta, UTC
+from azure.identity import DefaultAzureCredential
+import requests
 
 def load_config():
     with open('config.json') as f:
@@ -12,15 +15,50 @@ def load_config():
     return config
 
 config = load_config()
-blob_service_client = BlobServiceClient.from_connection_string(config["azure-storage-connection-string"])
 
+class Token:
+    def __init__(self, credential, scope):
+        self.credential = credential
+        self.scope = scope
+        self._cached_token = None
+        self._expires_on = None
+
+    def _refresh_token(self):
+        token = self.credential.get_token(self.scope)
+        self._cached_token = token.token
+        self._expires_on = datetime.fromtimestamp(token.expires_on, tz=UTC)
+
+    def get_token(self):
+        now = datetime.now(UTC)
+        if (
+            self._cached_token is None or
+            self._expires_on is None or
+            (now + timedelta(minutes=5)) > self._expires_on
+        ):
+            self._refresh_token()
+        return self._cached_token
+
+    def signed_session(self):
+        session = requests.Session()
+        session.headers.update({
+            "Authorization": f"Bearer {self.get_token()}"
+        })
+        return session
+
+credential = DefaultAzureCredential()
+aad_scope = "https://batch.core.windows.net/.default"
+token = Token(credential, aad_scope)
+
+
+blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=credential)
 def url_as_blob_name(url):
     return f"{url}.html" 
 
 def init_batch_client():
     """Initialize Azure Batch client."""
-    credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
-    return batch.BatchServiceClient(credentials, config["azure-batch-account-url"])
+   # credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
+    return batch.BatchServiceClient(credentials=token, batch_url=config["azure-batch-account-url"])
+
 
 def blob_to_data(blob):
     blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob)

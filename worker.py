@@ -12,8 +12,8 @@ from azure_config import config, blob_service_client
 
 nltk.download('punkt') #Download this before calling get_relevance as we are working inside a VM
 
-logging.basicConfig(filename='C:\\batch\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
-logger = logging.getLogger()
+#logging.basicConfig(filename='C:\\batch\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
+#logger = logging.getLogger()
 
 def upload_to_blob(file_name, node, links, crawl_delay):
     """Uploads node data to Azure Blob Storage"""
@@ -21,10 +21,10 @@ def upload_to_blob(file_name, node, links, crawl_delay):
         blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=file_name)
         node_data = json.dumps(node.node_as_json(links, crawl_delay))
         blob_client.upload_blob(node_data, overwrite=True)
-        logger.info(f"Uploaded {file_name} to Azure Blob Storage\n")
+        print(f"Uploaded {file_name} to Azure Blob Storage\n")
 
     except Exception as e:
-        logger.error(f"Error uploading blob: {e}")
+        print(f"Error uploading blob: {e}")
 
 
 def scrape(node_url, node_parent, keywords, crawl_delay):
@@ -34,7 +34,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
     and uploads everything to Azure to be downloaded by main.py.
     """
     retry_attempts = 3
-    logger.info(f"Processing {node_url}")
+    print(f"Processing {node_url}")
     node = Node(node_url, node_parent) #initialize node
     for attempt in range(retry_attempts):
         try:

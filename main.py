@@ -87,13 +87,15 @@ class App(ctk.CTk):
     
     def orchestrate_workers(self, first_node, keywords):
         start_time = time.time()
-        
+        print(f"Starting orchestrator. Time: {start_time}\n")
         def create_task(node):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
             crawl_delay = self.rules.crawl_delay
-            command =  f"worker.py {node.url} {node.parent} {keywords} {crawl_delay}" #this is what gets passed to the VM
-            return batch_models.TaskAddParameter(id=task_id, command_line=command)
+            command_line =  f'/bin/bash -c"cd $AZ_BATCH_NODE_SHARED_DIR/repo && dir"' #git fetch && git pull && python3 worker.py {node.url} {node.parent} {keywords} {crawl_delay}"' #this is what gets passed to the VM
+           
+
+            return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
         def process_children(node, task_list):
             """Recursively processes child nodes, starting with the root."""
@@ -111,20 +113,24 @@ class App(ctk.CTk):
             return node
         
         """Create a job and add it to our Azure Batch Client."""
-        job_id = get_job_id(first_node.url, self.batch_client)
-        job = batch_models.JobAddParameter(
-            id=job_id, pool_info=batch_models.PoolInformation(pool_id=config["pool-id"])
-        )
-        self.batch_client.job.add(job)
+        try: 
+            job_id = get_job_id(first_node.url, self.batch_client)
+            print(f"Job ID: {job_id}")
+            job = batch_models.JobAddParameter(
+                id=job_id, pool_info=batch_models.PoolInformation(pool_id=config["pool-id"])
+            )
+            self.batch_client.job.add(job)
+        except Exception as e:
+            print(f"Failed to create job: {e}")
         
         """The root node needs to be populated before we can start the recursive process_children function"""
         first_blob_name = url_as_blob_name(first_node.url)
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-        first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
+      #  first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
 
         """The rest of the webpage is processed recursively."""
-        tasks = [] 
+        """  tasks = [] 
         process_children(first_node, tasks)
 
         if tasks:
@@ -133,7 +139,7 @@ class App(ctk.CTk):
         with self.executor as executor:
             self.futures = list(executor.map(get_blob, tasks))
         
-        self.check_if_finished(start_time)
+        self.check_if_finished(start_time)"""
 
     def on_closing(self):
         """Cleanup when closing window."""
