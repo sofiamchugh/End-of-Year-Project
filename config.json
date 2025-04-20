@@ -7,6 +7,5 @@
     "pool-id": "vm-secure-pool",
     "container-name": "storage",
     "storage-account-name":"gathereddata",
-    "client-id": "51f8e85c-c8d8-48fa-a729-386bb50e8838
-"
+    "client-id": "51f8e85c-c8d8-48fa-a729-386bb50e8838"
 }
