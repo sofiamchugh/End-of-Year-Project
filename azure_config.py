@@ -46,7 +46,7 @@ class Token:
         return session
 
 credential = DefaultAzureCredential()
-managed_credential = ManagedIdentityCredential()
+managed_credential = ManagedIdentityCredential(client_id="51f8e85c-c8d8-48fa-a729-386bb50e8838")
 aad_scope = "https://batch.core.windows.net/.default"
 token = Token(credential, aad_scope)
 managed_token = Token (managed_credential, aad_scope)
