@@ -8,7 +8,7 @@ from util import find_links, get_relevance
 from node import Node
 import logging
 import nltk
-from azure_config import config, blob_service_client
+from azure_config import config, vm_blob_service_client
 
 nltk.download('punkt') #Download this before calling get_relevance as we are working inside a VM
 
@@ -18,7 +18,7 @@ nltk.download('punkt') #Download this before calling get_relevance as we are wor
 def upload_to_blob(file_name, node, links, crawl_delay):
     """Uploads node data to Azure Blob Storage"""
     try:
-        blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=file_name)
+        blob_client = vm_blob_service_client.get_blob_client(container=config["container-name"], blob=file_name)
         node_data = json.dumps(node.node_as_json(links, crawl_delay))
         blob_client.upload_blob(node_data, overwrite=True)
         print(f"Uploaded {file_name} to Azure Blob Storage\n")

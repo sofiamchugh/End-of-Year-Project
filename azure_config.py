@@ -6,7 +6,7 @@ import azure.batch.models as batch_models
 from node import Node
 import time
 from datetime import datetime, timedelta, UTC
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 import requests
 import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,11 +46,13 @@ class Token:
         return session
 
 credential = DefaultAzureCredential()
+managed_credential = ManagedIdentityCredential()
 aad_scope = "https://batch.core.windows.net/.default"
 token = Token(credential, aad_scope)
-
+managed_token = Token (managed_credential, aad_scope)
 
 blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=credential)
+vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
 def url_as_blob_name(url):
     return f"{url}.html" 
 

@@ -93,9 +93,10 @@ class App(ctk.CTk):
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
             crawl_delay = self.rules.crawl_delay
             command_line = f"""/bin/bash -c '
-cd /mnt/batch/tasks/shared/repo && \
-/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/worker.py {node.url} {node.parent} {keywords} {crawl_delay}
-'"""
+export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
+/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/worker.py {node.url} {node.parent} {keywords} {crawl_delay}'
+"""
+
 
           #  command = """/bin/bash -c 'echo "AZ_BATCH_NODE_SHARED_DIR=$AZ_BATCH_NODE_SHARED_DIR" &&  cd $AZ_BATCH_NODE_SHARED_DIR && pwd && ls -la'"""
 
