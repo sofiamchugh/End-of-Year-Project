@@ -93,4 +93,4 @@ if __name__ == "__main__":
     parser.add_argument("crawl_delay")
     args = parser.parse_args()
 
-    scraped_node, links = scrape(args.node_url, args.node_parent, args.keywords, args.crawl_delay)
+    scraped_node, links = scrape(args.node_url, args.node_parent, args.keywords, int(args.crawl_delay))

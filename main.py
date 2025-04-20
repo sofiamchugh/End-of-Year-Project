@@ -92,9 +92,12 @@ class App(ctk.CTk):
             """Creates the task that executes worker.py in an Azure VM node."""
             task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
             crawl_delay = self.rules.crawl_delay
-          #  command_line =  f'/bin/bash -c "cd $AZ_BATCH_NODE_SHARED_DIR/repo && python3 worker.py {node.url} {node.parent} {keywords} {crawl_delay}"' #this is what gets passed to the VM
-            command_line = f"/bin/bash -c '$AZ_BATCH_NODE_SHARED_DIR/venv/bin/python3 $AZ_BATCH_NODE_SHARED_DIR/repo/worker.py {node.url} {node.parent} {keywords} {crawl_delay}'"
+            command_line = f"""/bin/bash -c '
+cd /mnt/batch/tasks/shared/repo && \
+/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/worker.py {node.url} {node.parent} {keywords} {crawl_delay}
+'"""
 
+          #  command = """/bin/bash -c 'echo "AZ_BATCH_NODE_SHARED_DIR=$AZ_BATCH_NODE_SHARED_DIR" &&  cd $AZ_BATCH_NODE_SHARED_DIR && pwd && ls -la'"""
 
             return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
