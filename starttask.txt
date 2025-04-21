@@ -1,4 +1,5 @@
 /bin/bash -c "
+#libraries & dependencies
 export DEBIAN_FRONTEND=noninteractive && \
 apt-get update && \
 apt-get install -y git python3 python3-pip python3-venv && \
@@ -15,7 +16,8 @@ apt-get install -y \
     libcairo2 \
     libatspi2.0-0t64 \
     libasound2t64 && \
-# Clone or update the repo if already exists
+
+# Clone the repo or update if it already exists
 if [ -d /mnt/batch/tasks/shared/repo ]; then \
     cd /mnt/batch/tasks/shared/repo && git fetch && git pull; \
 else \
@@ -27,6 +29,11 @@ source /mnt/batch/tasks/shared/venv/bin/activate && \
 pip install --no-cache-dir -r /mnt/batch/tasks/shared/repo/requirements.txt && \
 PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers playwright install chromium && \
 export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
-# Run the daemon and keep it alive (without exiting immediately)
-nohup /mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/daemon.py > /mnt/batch/tasks/startup_log.txt 2>&1 &
+
+# Run the daemon
+nohup /mnt/batch/tasks/shared/venv/bin/uvicorn repo.daemon:app \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --log-level info \
+  > /mnt/batch/tasks/startup_log.txt 2>&1 &
 "

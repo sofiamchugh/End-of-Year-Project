@@ -13,7 +13,6 @@ import azure.batch.models as batch_models
 import threading
 from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor
-from playwright.sync_api import sync_playwright, TimeoutError
 import logging
 from user_agent import UserAgent
 from azure_config import config, blob_to_data, init_batch_client, get_job_id, url_as_blob_name

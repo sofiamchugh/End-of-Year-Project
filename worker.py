@@ -1,7 +1,7 @@
 import argparse
 import json
 import time
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 from azure.storage.blob import BlobServiceClient
 from bs4 import BeautifulSoup
 from util import find_links, get_relevance
@@ -39,7 +39,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
     node = Node(node_url, node_parent) #initialize node
     for attempt in range(3):
         try:
-            response = requests.post("http://127.0.0.1:8080/scrape", json={
+            response = requests.post("http://localhost:8080/scrape",  json={
                 "url": node_url,
                 "keywords": keywords.split(",") if keywords else [],
                 "crawl_delay": crawl_delay,

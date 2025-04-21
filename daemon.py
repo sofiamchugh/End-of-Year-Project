@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from typing import List, Optional
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright, Browser
 from bs4 import BeautifulSoup
 import uvicorn
 from util import find_links
@@ -11,74 +11,61 @@ import time
 import multiprocessing
 import threading
 from concurrent.futures import ThreadPoolExecutor
-
-browser_lock = threading.Lock()
-
-
-app = FastAPI()
-playwright = sync_playwright().start()
-browser = playwright.chromium.launch(headless=True)
-executor = ThreadPoolExecutor(max_workers=1)
+import asyncio
+from contextlib import asynccontextmanager
 
 class ScrapeRequest(BaseModel):
     url: str
     keywords: Optional[List[str]] = []
     crawl_delay: Optional[int] = 0
 
-@app.post("/shutdown")
-def shutdown():
-    browser.close()
-    os.kill(os.getpid(), signal.SIGINT)
+"""Playwright persists in lifespan between different workers"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting Playwright...")
+    playwright = await async_playwright().start()
+    browser = await playwright.chromium.launch(headless=True)
 
-def scraper_thread(req: ScrapeRequest):
-    with browser_lock:
-        try:
-            time.sleep(req.crawl_delay)
-            page = browser.new_page()
-            response = page.goto(req.url, timeout=20000)
-            content_type = response.headers.get('content-type', '')
+    # Store it in app state
+    app.state.playwright = playwright
+    app.state.browser = browser
 
-            if not 'text/html' in content_type:
-                print(f"{req.url} not HTML")
-                return 0
-                        
-            status_code = response.status if response else None
+    yield #app runs here
 
-            if status_code and status_code >= 400:  # Flag errors
-                print(f"Warning: HTTP {status_code} \n")
+    print("Shutting down Playwright...")
+    await browser.close()
+    await playwright.stop()
 
-            page.wait_for_load_state()
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            text = page.content()
 
-        
-            soup = BeautifulSoup(text, 'html.parser')
-            # relevance = get_relevance(soup, req.keywords) if req.keywords else 0
-            links = find_links(soup, req.url)
-            page.close()
+app = FastAPI(lifespan=lifespan)
 
-            return {
-                "url": req.url,
-           # "relevance": relevance,
-                "links": links
-           # "html": soup.prettify()
-            }
-        except Exception as e:
-            return {"error": str(e)}
 
-@app.post("/scrape")  
-def scrape(req: ScrapeRequest):
-    return scraper_thread(req)
 
-# Run the server
-def start_daemon():
+@app.post("/scrape")
+async def scrape(req: ScrapeRequest):
+    try:
+        await asyncio.sleep(req.crawl_delay)
 
-    config = uvicorn.Config(app=app, host="0.0.0.0", port=8080, log_level="info")
-    server = uvicorn.Server(config)
-    # Run the server in a separate process to avoid the asyncio event loop conflict
-    process = multiprocessing.Process(target=server.run)
-    process.start()
-    process.join()  # Wait for the server to finish
+        browser: Browser = app.state.browser
+        page = await browser.new_page()
 
-if __name__ == "__main__":
-    start_daemon()
+        response = await page.goto(req.url, timeout=20000)
+        content_type = response.headers.get("content-type", "")
+        if "text/html" not in content_type:
+            return {"error": "Not HTML content"}
+
+        await page.wait_for_load_state()
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        html = await page.content()
+        await page.close()
+
+        soup = BeautifulSoup(html, "html.parser")
+        links = find_links(soup, req.url)
+
+        return {
+            "url": req.url,
+            "links": links
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
