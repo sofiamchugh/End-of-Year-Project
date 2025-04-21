@@ -1,15 +1,15 @@
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urlunparse, urljoin
-from sentence_transformers import SentenceTransformer, util
-import nltk
-from nltk.tokenize import sent_tokenize, word_tokenize
-from collections import Counter
-nltk.download('punkt_tab')
-nltk.download('punkt')
+#from sentence_transformers import SentenceTransformer, util
+#import nltk
+#from nltk.tokenize import sent_tokenize, word_tokenize
+#from collections import Counter
+#nltk.download('punkt_tab')
+#nltk.download('punkt')
 
 # Load a transformer model for contextual similarity
-model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+#model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
 def process_url(url):
     parsed = urlparse(url)
