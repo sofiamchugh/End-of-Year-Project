@@ -1,3 +1,5 @@
+fastapi
+pydantic
 playwright
 bs4
 azure-batch
