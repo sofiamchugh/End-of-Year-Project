@@ -31,7 +31,7 @@ def shutdown():
 
 @app.post("/scrape")
 def scrape(req: ScrapeRequest):
-    with threading.lock:
+    with browser_lock:
         try:
             time.sleep(req.crawl_delay)
             page = browser.new_page()
