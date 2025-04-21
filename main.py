@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from playwright.sync_api import sync_playwright, TimeoutError
 import logging
 from user_agent import UserAgent
-from azure_config import config, blob_to_data, init_batch_client, node_from_json_data, get_job_id, url_as_blob_name
+from azure_config import config, blob_to_data, init_batch_client, get_job_id, url_as_blob_name
 
 ctk.set_appearance_mode("light") 
 
@@ -79,7 +79,10 @@ class App(ctk.CTk):
         """Download blobs from Azure and converts them to nodes to be displayed in-app. """
 
         data = blob_to_data(blob_name) #downloads blob from azure
-        node = node_from_json_data(data, self.seen, self.lock, self.rules) #gets node from data
+        node = Node(self, None)
+        
+        node.node_from_json(data, self.seen, self.lock, self.rules)
+        
         self.data_queue.put(node) # Put node in queue to be added to graph
 
         new_delay = data["crawl_delay"] 
@@ -96,10 +99,6 @@ class App(ctk.CTk):
 export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
 /mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/worker.py {node.url} {node.parent} {keywords} {crawl_delay}'
 """
-
-
-          #  command = """/bin/bash -c 'echo "AZ_BATCH_NODE_SHARED_DIR=$AZ_BATCH_NODE_SHARED_DIR" &&  cd $AZ_BATCH_NODE_SHARED_DIR && pwd && ls -la'"""
-
             return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
         def process_children(node, task_list):
@@ -129,12 +128,14 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
         
         """The root node needs to be populated before we can start the recursive process_children function"""
         first_blob_name = url_as_blob_name(first_node.url)
+        print(first_blob_name)
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-      #  first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
+        time.sleep(30)
+        first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
 
         """The rest of the webpage is processed recursively."""
-        """  tasks = [] 
+        tasks = [] 
         process_children(first_node, tasks)
 
         if tasks:
@@ -143,7 +144,7 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
         with self.executor as executor:
             self.futures = list(executor.map(get_blob, tasks))
         
-        self.check_if_finished(start_time)"""
+        self.check_if_finished(start_time)
 
     def on_closing(self):
         """Cleanup when closing window."""

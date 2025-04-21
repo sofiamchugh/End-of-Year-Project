@@ -1,10 +1,10 @@
+from user_agent import UserAgent
 class Node:
     def __init__(self, url, parent):
         self.parent = parent
         self.relevance = 0
         self.url = url
         self.children = []
-        self.content = None
     def add_child(self,child):
         self.children.append(child)
     def set_relevance(self,relevance):
@@ -23,3 +23,20 @@ class Node:
             "crawl_delay": crawl_delay
         }
         return node_data
+    def node_from_json(self, node_data, seen, lock, rules):
+        self.url = node_data["url"]
+        if node_data["parent"] == "None":
+            self.parent = None
+        else:
+            self.parent = node_data["parent"]
+        self.relevance = node_data["relevance"]
+        links = node_data["links"]
+        for link in links:
+            with lock:
+                if link not in seen:
+                    if rules.url_is_allowed(link):
+                        seen.add(link)
+                        child = Node(link, self.url)
+                        self.add_child(child)
+                    else:
+                        print(f"{link} is not allowed")

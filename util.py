@@ -117,9 +117,8 @@ def find_links(soup, url):
             l = urljoin(url, l)
             if '#' in l:
                 continue
-            for type in filetypes:
-                if type in l:
-                    continue
+            if any(ext in l.lower() for ext in filetypes):
+                continue
             l = process_url(l)
             if get_base_homepage(l) != get_base_homepage(url):
                 continue

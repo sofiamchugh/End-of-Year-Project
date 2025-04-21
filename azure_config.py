@@ -1,6 +1,7 @@
 import json
 import azure.batch as batch
 from azure.storage.blob import BlobServiceClient
+from azure.core.exceptions import ResourceNotFoundError
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
 from node import Node
@@ -54,7 +55,8 @@ managed_token = Token (managed_credential, aad_scope)
 blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=credential)
 vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
 def url_as_blob_name(url):
-    return f"{url}.html" 
+    clean_url = url.replace("https://", "").replace("http://", "")
+    return f"{clean_url}.html" 
 
 def init_batch_client():
     """Initialize Azure Batch client."""
@@ -64,23 +66,19 @@ def init_batch_client():
 
 def blob_to_data(blob):
     blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob)
-    downloaded_blob = blob_client.download_blob() # Download blob from Azure container
-    return json.loads(downloaded_blob.readall())
+    for i in range(3):
+        try:
+            downloaded_blob = blob_client.download_blob() # Download blob from Azure container
+            break
+        except ResourceNotFoundError:
+            time.sleep(3)
 
-def node_from_json_data(node_data, seen, lock, rules):
-    # Initialize Node object
-    node = Node(node_data['url'], node_data['parent'])
-    node.set_relevance(node_data['relevance'])
-    links = node_data["links"]
-    for link in links:
-        with lock:
-            if link not in seen:
-                if rules.url_is_allowed(link):
-                    seen.add(link)
-                    child = node.Node(link, node)
-                    node.add_child(child)
+    if downloaded_blob:
+        return json.loads(downloaded_blob.readall())
+    else:
+        return None
 
-    return node
+
 
 def get_job_id(url, batch_client):
     """Names the job according to the supplied URL and checks that it does not exist already."""
