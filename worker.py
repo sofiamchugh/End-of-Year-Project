@@ -66,8 +66,8 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
 
             """Compute a relevance value (if keywords provided)"""
             soup = BeautifulSoup(text, 'html.parser') #we turn the web text into a beautiful soup object
-            node.set_relevance(get_relevance(soup, keywords) if keywords else 0) #compute relevance (optional)
-           
+           # node.set_relevance(get_relevance(soup, keywords) if keywords else 0) #compute relevance (optional)
+            node.set_relevance(0.5)
             links = find_links(soup, node_url) #get a list of links to turn into children
 
             """Upload to Azure"""

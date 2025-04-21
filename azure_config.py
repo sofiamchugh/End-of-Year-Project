@@ -66,16 +66,19 @@ def init_batch_client():
 
 def blob_to_data(blob):
     blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob)
-    for i in range(3):
+    downloaded_blob = None
+    for i in range(50):
         try:
             downloaded_blob = blob_client.download_blob() # Download blob from Azure container
+            print(f"blob {blob} downloaded")
             break
         except ResourceNotFoundError:
-            time.sleep(3)
+            time.sleep(1)
 
-    if downloaded_blob:
+    if downloaded_blob is not None:
         return json.loads(downloaded_blob.readall())
     else:
+        print(f"timed out waiting for {blob}")
         return None
 
 

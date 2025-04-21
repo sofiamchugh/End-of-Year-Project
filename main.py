@@ -82,13 +82,14 @@ class App(ctk.CTk):
         node = Node(self, None)
         
         node.node_from_json(data, self.seen, self.lock, self.rules)
-        
+        print(f"adding {node.url} to data queue")
         self.data_queue.put(node) # Put node in queue to be added to graph
 
         new_delay = data["crawl_delay"] 
         return node, new_delay
     
     def orchestrate_workers(self, first_node, keywords):
+        self.show_frame("Gathering")
         start_time = time.time()
         print(f"Starting orchestrator. Time: {start_time}\n")
         def create_task(node):
@@ -104,6 +105,7 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
         def process_children(node, task_list):
             """Recursively processes child nodes, starting with the root."""
             for child in node.children:
+                print(f"creating task for {child.url}")
                 task = create_task(child) 
                 task_list.append(task)
                 process_children(child, task_list)
@@ -128,10 +130,9 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
         
         """The root node needs to be populated before we can start the recursive process_children function"""
         first_blob_name = url_as_blob_name(first_node.url)
-        print(first_blob_name)
+        self.seen.add(first_node.url)
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-        time.sleep(30)
         first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
 
         """The rest of the webpage is processed recursively."""

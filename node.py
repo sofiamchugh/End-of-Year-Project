@@ -24,19 +24,22 @@ class Node:
         }
         return node_data
     def node_from_json(self, node_data, seen, lock, rules):
-        self.url = node_data["url"]
-        if node_data["parent"] == "None":
-            self.parent = None
+        if node_data: 
+            self.url = node_data["url"]
+            if node_data["parent"] == "None":
+                self.parent = None
+            else:
+                self.parent = node_data["parent"]
+            self.relevance = node_data["relevance"]
+            links = node_data["links"]
+            for link in links:
+                with lock:
+                    if link not in seen:
+                        if rules.url_is_allowed(link):
+                            seen.add(link)
+                            child = Node(link, self.url)
+                            self.add_child(child)
+                        else:
+                            print(f"{link} is not allowed")
         else:
-            self.parent = node_data["parent"]
-        self.relevance = node_data["relevance"]
-        links = node_data["links"]
-        for link in links:
-            with lock:
-                if link not in seen:
-                    if rules.url_is_allowed(link):
-                        seen.add(link)
-                        child = Node(link, self.url)
-                        self.add_child(child)
-                    else:
-                        print(f"{link} is not allowed")
+            print("Node data not found. ")

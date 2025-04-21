@@ -41,13 +41,10 @@ class GatherFrame(ctk.CTkFrame):
             nodes_count = len(self.G.nodes)
             if not self.data_queue.empty():
                 data = self.data_queue.get_nowait() #get nodes from queue
-                print(f"NODE: {data.url} \n PARENT: {data.parent} \n CHILDREN: {len(data.children)}")
                 if data is None:
                     return
-                print ("47")
                 if data.url is None:
                     return
-                print("50")
                 if data.url not in self.G.nodes: #double check there is no node with this URL already
                     self.G.add_node(data.url)
                     if (data.parent is not None): #this is just for the root node, which has no parent
