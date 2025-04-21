@@ -45,7 +45,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
                 "crawl_delay": crawl_delay,
                 "timeout_ms": 15000
             }, timeout=20)
-
+           
             result = response.json()
             if "error" in result:
                 print(f"Scrape error: {result['error']}")
@@ -58,6 +58,10 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
             file_name = f"{node.url.replace('https://', '').replace('/', '_')}.html"
             upload_to_blob(file_name, node, links, crawl_delay)
             break
+
+        except requests.exceptions.JSONDecodeError:
+            print("Raw response from daemon:\n", response.text)
+            raise  # or handle gracefully
 
         except TimeoutError as e:
             if(attempt + 1 == retry_attempts):

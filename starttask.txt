@@ -15,10 +15,18 @@ apt-get install -y \
     libcairo2 \
     libatspi2.0-0t64 \
     libasound2t64 && \
-git clone https://github.com/sofiamchugh/End-of-Year-Project.git /mnt/batch/tasks/shared/repo && \
+# Clone or update the repo if already exists
+if [ -d /mnt/batch/tasks/shared/repo ]; then \
+    cd /mnt/batch/tasks/shared/repo && git fetch && git pull; \
+else \
+    git clone https://github.com/sofiamchugh/End-of-Year-Project.git /mnt/batch/tasks/shared/repo; \
+fi && \
 git config --global --add safe.directory /mnt/batch/tasks/shared/repo && \
 python3 -m venv /mnt/batch/tasks/shared/venv && \
 source /mnt/batch/tasks/shared/venv/bin/activate && \
 pip install --no-cache-dir -r /mnt/batch/tasks/shared/repo/requirements.txt && \
-PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers playwright install chromium && \
+export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
+# Run the daemon and keep it alive (without exiting immediately)
+nohup /mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/daemon.py > /mnt/batch/tasks/startup_log.txt 2>&1 &
 "
