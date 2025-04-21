@@ -68,8 +68,7 @@ def scraper_thread(req: ScrapeRequest):
 
 @app.post("/scrape")  
 def scrape(req: ScrapeRequest):
-    future = executor.submit(scraper_thread, req)
-    return future.result()
+    return scraper_thread(req)
 
 # Run the server
 def start_daemon():
