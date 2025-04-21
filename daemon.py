@@ -8,6 +8,7 @@ from util import find_links
 import os
 import signal
 import time
+import multiprocessing
 
 app = FastAPI()
 playwright = sync_playwright().start()
@@ -62,9 +63,13 @@ def scrape(req: ScrapeRequest):
 
 # Run the server
 def start_daemon():
+
     config = uvicorn.Config(app=app, host="0.0.0.0", port=8080, log_level="info")
-    server = uvicorn.Server(config=config)
-    server.run()  # This runs the FastAPI server
+    server = uvicorn.Server(config)
+    # Run the server in a separate process to avoid the asyncio event loop conflict
+    process = multiprocessing.Process(target=server.run)
+    process.start()
+    process.join()  # Wait for the server to finish
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    start_daemon()
