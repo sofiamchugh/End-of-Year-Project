@@ -5,6 +5,8 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import uvicorn
 from util import find_links
+import sys
+import asyncio
 
 app = FastAPI()
 playwright = sync_playwright().start()
@@ -51,4 +53,8 @@ def scrape(req: Request):
 
 # Run the server
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    if sys.platform == "win32":
+        # Windows needs this tweak for nested event loops
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    uvicorn.run("daemon:app", host="127.0.0.1", port=8080, reload=False)
