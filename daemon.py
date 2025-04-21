@@ -67,4 +67,4 @@ def start_daemon():
     server.run()  # This runs the FastAPI server
 
 if __name__ == "__main__":
-    start_daemon()
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
