@@ -51,7 +51,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
                 print(f"Scrape error: {result['error']}")
                 return
 
-            node.set_relevance(result["relevance"])
+           
             links = result["links"]
 
             """Upload to Azure"""
