@@ -3,6 +3,5 @@ bs4
 azure-batch
 azure-storage-blob
 azure-identity
-nltk
-sentence-transformers
+uvicorn
 requests
