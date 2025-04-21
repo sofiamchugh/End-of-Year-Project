@@ -10,6 +10,7 @@ import signal
 import time
 import multiprocessing
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 browser_lock = threading.Lock()
 
@@ -17,7 +18,7 @@ browser_lock = threading.Lock()
 app = FastAPI()
 playwright = sync_playwright().start()
 browser = playwright.chromium.launch(headless=True)
-
+executor = ThreadPoolExecutor(max_workers=1)
 
 class ScrapeRequest(BaseModel):
     url: str
@@ -29,8 +30,7 @@ def shutdown():
     browser.close()
     os.kill(os.getpid(), signal.SIGINT)
 
-@app.post("/scrape")
-def scrape(req: ScrapeRequest):
+def scraper_thread(req: ScrapeRequest):
     with browser_lock:
         try:
             time.sleep(req.crawl_delay)
@@ -65,6 +65,11 @@ def scrape(req: ScrapeRequest):
             }
         except Exception as e:
             return {"error": str(e)}
+
+@app.post("/scrape")  
+def scrape(req: ScrapeRequest):
+    future = executor.submit(scraper_thread, req)
+    return future.result()
 
 # Run the server
 def start_daemon():

@@ -28,7 +28,7 @@ def upload_to_blob(file_name, node, links, crawl_delay):
         print(f"Error uploading blob: {e}")
 
 
-def scrape(node_url, node_parent, keywords, crawl_delay):
+def scraper_thread(node_url, node_parent, keywords, crawl_delay):
     """
     Scrapes the data from a webpage, 
     calculates its importance for the given keywords
@@ -69,7 +69,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
             else:
                 print("Dropped {node.url} after 3 timeouts.")
 
-            
+
 
     return node, links
 
