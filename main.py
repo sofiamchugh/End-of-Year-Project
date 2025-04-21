@@ -43,11 +43,15 @@ class App(ctk.CTk):
             self.rules = UserAgent()
 
 
-    def check_if_finished(self, start_time):
+    def check_if_finished(self, start_time, job_id):
         all_done = all(f.done() for f in self.futures.copy())
         if all_done:
             job_end_time = time.time()
             print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}")
+            task_id = "shutdown"
+            command_line = """/bin/bash -c'/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/shutdown.py'"""
+            task = batch_models.TaskAddParameter(id=task_id, command_line=command_line)
+            self.batch_client.task.add(job_id, task)
         else:
             self.after(500, self.check_if_finished)
 

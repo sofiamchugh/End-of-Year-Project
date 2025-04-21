@@ -5,22 +5,30 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import uvicorn
 from util import find_links
-import sys
-import asyncio
+import os
+import signal
+import time
 
 app = FastAPI()
 playwright = sync_playwright().start()
 browser = playwright.chromium.launch(headless=True)
-page = browser.new_page()
 
-class Request(BaseModel):
+
+class ScrapeRequest(BaseModel):
     url: str
     keywords: Optional[List[str]] = []
     crawl_delay: Optional[int] = 0
 
+@app.post("/shutdown")
+def shutdown():
+    browser.close()
+    os.kill(os.getpid(), signal.SIGINT)
+
 @app.post("/scrape")
-def scrape(req: Request):
+def scrape(req: ScrapeRequest):
     try:
+        time.sleep(req.crawl_delay)
+        page = browser.new_page()
         response = page.goto(req.url, timeout=20000)
         content_type = response.headers.get('content-type', '')
 
@@ -41,6 +49,7 @@ def scrape(req: Request):
         soup = BeautifulSoup(text, 'html.parser')
        # relevance = get_relevance(soup, req.keywords) if req.keywords else 0
         links = find_links(soup, req.url)
+        page.close()
 
         return {
             "url": req.url,
@@ -52,9 +61,10 @@ def scrape(req: Request):
         return {"error": str(e)}
 
 # Run the server
-if __name__ == "__main__":
-    if sys.platform == "win32":
-        # Windows needs this tweak for nested event loops
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+def start_daemon():
+    config = uvicorn.Config(app=app, host="0.0.0.0", port=8080, log_level="info")
+    server = uvicorn.Server(config=config)
+    server.run()  # This runs the FastAPI server
 
-    uvicorn.run("daemon:app", host="127.0.0.1", port=8080, reload=False)
+if __name__ == "__main__":
+    start_daemon()
