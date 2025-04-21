@@ -9,6 +9,10 @@ import os
 import signal
 import time
 import multiprocessing
+import threading
+
+browser_lock = threading.Lock()
+
 
 app = FastAPI()
 playwright = sync_playwright().start()
@@ -27,39 +31,40 @@ def shutdown():
 
 @app.post("/scrape")
 def scrape(req: ScrapeRequest):
-    try:
-        time.sleep(req.crawl_delay)
-        page = browser.new_page()
-        response = page.goto(req.url, timeout=20000)
-        content_type = response.headers.get('content-type', '')
+    with threading.lock:
+        try:
+            time.sleep(req.crawl_delay)
+            page = browser.new_page()
+            response = page.goto(req.url, timeout=20000)
+            content_type = response.headers.get('content-type', '')
 
-        if not 'text/html' in content_type:
-            print(f"{req.url} not HTML")
-            return 0
+            if not 'text/html' in content_type:
+                print(f"{req.url} not HTML")
+                return 0
                         
-        status_code = response.status if response else None
+            status_code = response.status if response else None
 
-        if status_code and status_code >= 400:  # Flag errors
-            print(f"Warning: HTTP {status_code} \n")
+            if status_code and status_code >= 400:  # Flag errors
+                print(f"Warning: HTTP {status_code} \n")
 
-        page.wait_for_load_state()
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        text = page.content()
+            page.wait_for_load_state()
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            text = page.content()
 
         
-        soup = BeautifulSoup(text, 'html.parser')
-       # relevance = get_relevance(soup, req.keywords) if req.keywords else 0
-        links = find_links(soup, req.url)
-        page.close()
+            soup = BeautifulSoup(text, 'html.parser')
+            # relevance = get_relevance(soup, req.keywords) if req.keywords else 0
+            links = find_links(soup, req.url)
+            page.close()
 
-        return {
-            "url": req.url,
+            return {
+                "url": req.url,
            # "relevance": relevance,
-            "links": links
+                "links": links
            # "html": soup.prettify()
-        }
-    except Exception as e:
-        return {"error": str(e)}
+            }
+        except Exception as e:
+            return {"error": str(e)}
 
 # Run the server
 def start_daemon():
