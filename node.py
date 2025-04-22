@@ -35,11 +35,11 @@ class Node:
             for link in links:
                 with lock:
                     if link not in seen:
-                        if rules.url_is_allowed(link):
+                      #  if rules.url_is_allowed(link):
                             seen.add(link)
                             child = Node(link, self.url)
                             self.add_child(child)
-                        else:
-                            print(f"{link} is not allowed")
+                       # else:
+                       #     print(f"{link} is not allowed")
         else:
             print("Node data not found. ")

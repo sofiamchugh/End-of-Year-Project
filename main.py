@@ -10,12 +10,14 @@ import azure.batch as batch
 from azure.storage.blob import BlobServiceClient
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
+from azure.batch.models import CreateTasksErrorException
 import threading
 from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor
 import logging
 from user_agent import UserAgent
 from azure_config import config, blob_to_data, init_batch_client, get_job_id, url_as_blob_name
+from util import make_safe_task_id
 
 ctk.set_appearance_mode("light") 
 
@@ -40,19 +42,22 @@ class App(ctk.CTk):
             self.job_start_time = 0
             self.batch_client = init_batch_client()
             self.rules = UserAgent()
-
+            self.tasks_made = 0
 
     def check_if_finished(self, start_time, job_id):
-        all_done = all(f.done() for f in self.futures.copy())
+        all_done = all(f.done() for f in list(self.futures))
+
         if all_done:
             job_end_time = time.time()
-            print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}")
+            print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, Tasks made = {self.tasks_made}, final crawl delay: {self.rules.crawl_delay}")
             task_id = "shutdown"
             command_line = """/bin/bash -c'/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/shutdown.py'"""
             task = batch_models.TaskAddParameter(id=task_id, command_line=command_line)
             self.batch_client.task.add(job_id, task)
+            time.sleep(5)
+           # self.batch_client.job.delete(job_id)
         else:
-            self.after(500, self.check_if_finished)
+            self.after(500, self.check_if_finished, start_time, job_id)
 
     def init_frames(self):
         """Each frame is a class that defines a Custom TKInter layout and the relevant functions."""
@@ -85,19 +90,20 @@ class App(ctk.CTk):
         node = Node(self, None)
         
         node.node_from_json(data, self.seen, self.lock, self.rules)
-        print(f"adding {node.url} to data queue")
         self.data_queue.put(node) # Put node in queue to be added to graph
 
         new_delay = data["crawl_delay"] 
         return node, new_delay
     
     def orchestrate_workers(self, first_node, keywords):
+        
         self.show_frame("Gathering")
         start_time = time.time()
+
         print(f"Starting orchestrator. Time: {start_time}\n")
         def create_task(node):
             """Creates the task that executes worker.py in an Azure VM node."""
-            task_id = f"task-{node.url.replace('https://', '').replace('/', '_').replace('.', '-')}"
+            task_id = make_safe_task_id(node.url)
             crawl_delay = self.rules.crawl_delay
             command_line = f"""/bin/bash -c '
 export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
@@ -105,19 +111,27 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
 """
             return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
-        def process_children(node, task_list):
+        def process_children(node):
             """Recursively processes child nodes, starting with the root."""
             for child in node.children:
                 print(f"creating task for {child.url}")
                 task = create_task(child) 
-                task_list.append(task)
-                process_children(child, task_list)
+                self.tasks_made +=1
+                self.batch_client.task.add(job_id, task)
+                self.futures.add(self.executor.submit(get_blob, child.url))
+                #task_list.append((task, child.url))
+                process_children(child)
 
-        def get_blob(task):
+        def get_blob(url):
             """Some pre-processing before we can use executor.map to download blobs."""
-            node_url = task.id.replace('task-', '').replace('_', '/') #reformat the URL into task ID
+            node_url = url.replace('https://', '').replace('_', '/').replace('.', '-') #reformat the URL into task ID
             blob_name = url_as_blob_name(node_url)
             node, new_delay = self.process_azure_info(blob_name)
+            for child in node.children:
+                task = create_task(child)
+                self.tasks_made +=1
+                self.batch_client.task.add(job_id, task)
+                self.futures.add(self.executor.submit(get_blob, child.url))
             self.update_crawl_delay(new_delay, self.rules.crawl_delay)
             return node
         
@@ -136,19 +150,12 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
         self.seen.add(first_node.url)
         first_task = create_task(first_node)
         self.batch_client.task.add(job_id, first_task)
-        first_node = self.process_azure_info(first_blob_name)[0] #first_node now has children
+        self.futures.add(self.executor.submit(get_blob, first_node.url)) #first_node now has children
 
         """The rest of the webpage is processed recursively."""
-        tasks = [] 
-        process_children(first_node, tasks)
+       # process_children(first_node)  
 
-        if tasks:
-            self.batch_client.task.add_collection(job_id, tasks)
-
-        with self.executor as executor:
-            self.futures = list(executor.map(get_blob, tasks))
-        
-        self.check_if_finished(start_time)
+        self.check_if_finished(start_time, job_id)
 
     def on_closing(self):
         """Cleanup when closing window."""

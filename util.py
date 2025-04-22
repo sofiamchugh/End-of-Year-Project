@@ -1,4 +1,5 @@
 import re
+import hashlib
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urlunparse, urljoin
 #from sentence_transformers import SentenceTransformer, util
@@ -10,6 +11,15 @@ from urllib.parse import urlparse, urlunparse, urljoin
 
 # Load a transformer model for contextual similarity
 #model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+
+
+def make_safe_task_id(url: str) -> str:
+    safe = re.sub(r"[^a-zA-Z0-9_-]", "_", url)
+    if len(safe) > 58:  # 64 - len("task-") = 59
+        # Hash the original to keep uniqueness
+        hash_suffix = hashlib.md5(url.encode()).hexdigest()[:6]
+        safe = f"{safe[:52]}_{hash_suffix}"
+    return f"task-{safe}"
 
 def process_url(url):
     parsed = urlparse(url)

@@ -48,10 +48,7 @@ class GatherFrame(ctk.CTkFrame):
                 if data.url not in self.G.nodes: #double check there is no node with this URL already
                     self.G.add_node(data.url)
                     if (data.parent is not None): #this is just for the root node, which has no parent
-                        print("hello?")
                         self.G.add_edge(data.url, data.parent) #all other nodes should have edges
-                        print("57")
-                    print("58")
                     if (data.relevance >= 0.65): #colour coding
                         self.node_colours.append('green')
                     elif(data.relevance <= 0.2):

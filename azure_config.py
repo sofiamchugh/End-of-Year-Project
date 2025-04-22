@@ -1,7 +1,8 @@
 import json
+import warnings
 import azure.batch as batch
 from azure.storage.blob import BlobServiceClient
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ResourceNotFoundError, AzureError
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
 from node import Node
@@ -10,13 +11,18 @@ from datetime import datetime, timedelta, UTC
 from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 import requests
 import os
+
+"""Configuration"""
 script_dir = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(script_dir, 'config.json')
 
 with open(config_path) as f:
     config = json.load(f)
 
+warnings.filterwarnings("ignore", module="azure")
 
+
+"""Token Class that refreshes"""
 class Token:
     def __init__(self, credential, scope):
         self.credential = credential
@@ -46,17 +52,20 @@ class Token:
         })
         return session
 
+"""Azure credentials and client variables"""
 credential = DefaultAzureCredential()
-managed_credential = ManagedIdentityCredential(client_id="51f8e85c-c8d8-48fa-a729-386bb50e8838")
 aad_scope = "https://batch.core.windows.net/.default"
 token = Token(credential, aad_scope)
-managed_token = Token (managed_credential, aad_scope)
+
+managed_credential = ManagedIdentityCredential(client_id="51f8e85c-c8d8-48fa-a729-386bb50e8838")
 
 blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=credential)
 vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
+
+"""Utility functions for Azure connections"""
 def url_as_blob_name(url):
-    print(f"cleaning url {url}")
-    clean_url = url.replace("https://", "").replace("http://", "").replace("/", "_")
+    """Processes URL to match blob naming format."""
+    clean_url = url.replace("https://", "").replace("http://", "").replace("/", "_").replace(".", "-")
     return f"{clean_url}.html" 
 
 def init_batch_client():
@@ -64,17 +73,15 @@ def init_batch_client():
    # credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
     return batch.BatchServiceClient(credentials=token, batch_url=config["azure-batch-account-url"])
 
-
 def blob_to_data(blob):
+    """Downloads a blob and loads JSON data."""
     blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob)
     downloaded_blob = None
-    for i in range(50):
+    for i in range(100):
         try:
             downloaded_blob = blob_client.download_blob() # Download blob from Azure container
-            print(f"[attempt {i+1}] blob {blob} downloaded")
             break
         except ResourceNotFoundError:
-            print(f"[attempt {i+1}] blob {blob} not found yet")
             time.sleep(1)
 
     if downloaded_blob is not None:
@@ -83,11 +90,9 @@ def blob_to_data(blob):
         print(f"timed out waiting for {blob}")
         return None
 
-
-
 def get_job_id(url, batch_client):
     """Names the job according to the supplied URL and checks that it does not exist already."""
-    job_id = f"gather-job-{url.replace('https://', '').replace('/', '_').replace('.', '-')}"
+    job_id = f"gather-job-{url.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '-')}"
 
     try:
         existing_job = batch_client.job.get(job_id)  # Check if job exists
