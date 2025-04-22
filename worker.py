@@ -55,7 +55,7 @@ def scrape(node_url, node_parent, keywords, crawl_delay):
             links = result["links"]
 
             """Upload to Azure"""
-            file_name = f"{node.url.replace('https://', '').replace('http://', '').replace('/', '_').replace(".", "-")}.html"
+            file_name = f"{node.url.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '-')}.html"
             upload_to_blob(file_name, node, links, crawl_delay)
             break
 
