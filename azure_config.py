@@ -55,7 +55,8 @@ managed_token = Token (managed_credential, aad_scope)
 blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=credential)
 vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
 def url_as_blob_name(url):
-    clean_url = url.replace("https://", "").replace("http://", "")
+    print(f"cleaning url {url}")
+    clean_url = url.replace("https://", "").replace("http://", "").replace("/", "_")
     return f"{clean_url}.html" 
 
 def init_batch_client():
@@ -70,9 +71,10 @@ def blob_to_data(blob):
     for i in range(50):
         try:
             downloaded_blob = blob_client.download_blob() # Download blob from Azure container
-            print(f"blob {blob} downloaded")
+            print(f"[attempt {i+1}] blob {blob} downloaded")
             break
         except ResourceNotFoundError:
+            print(f"[attempt {i+1}] blob {blob} not found yet")
             time.sleep(1)
 
     if downloaded_blob is not None:

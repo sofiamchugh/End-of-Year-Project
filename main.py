@@ -115,7 +115,7 @@ export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && \
 
         def get_blob(task):
             """Some pre-processing before we can use executor.map to download blobs."""
-            node_url = task.id.replace('task-', '').replace('_', '/').replace('-', '.') #reformat the URL into task ID
+            node_url = task.id.replace('task-', '').replace('_', '/') #reformat the URL into task ID
             blob_name = url_as_blob_name(node_url)
             node, new_delay = self.process_azure_info(blob_name)
             self.update_crawl_delay(new_delay, self.rules.crawl_delay)
