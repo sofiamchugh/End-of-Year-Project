@@ -6,9 +6,9 @@ import threading
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 import json
-from app.user_agent import UserAgent
+from user_agent import UserAgent
 import time
-from app.node import Node
+from node import Node
 from azure.core.exceptions import ResourceNotFoundError, AzureError
 
 

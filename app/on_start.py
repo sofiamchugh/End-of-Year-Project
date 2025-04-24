@@ -1,13 +1,13 @@
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-import app.node as node
+import node as node
 import validators
 from util.util import process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
-from app.user_agent import UserAgent
+from user_agent import UserAgent
     
 class OnStartFrame(ctk.CTkFrame):
     """The frame for the layout that displays when app is first opened 

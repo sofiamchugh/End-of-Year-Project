@@ -6,7 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import networkx as nx
 import customtkinter as ctk
 import numpy as np
-from app.click_functions import onClick, onHover
+from click_functions import onClick, onHover
 
 
 class GatherFrame(ctk.CTkFrame):

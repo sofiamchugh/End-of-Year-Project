@@ -1,8 +1,8 @@
 from tkinter import *
 import customtkinter as ctk
-from app.on_start import OnStartFrame
-from app.sitemap import GatherFrame
-from app.node import Node
+from on_start import OnStartFrame
+from sitemap import GatherFrame
+from node import Node
 import time
 from queue import Queue
 from util.util import clean_url
