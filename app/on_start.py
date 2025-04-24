@@ -13,13 +13,12 @@ from util.util import process_url
 class OnStartFrame(ctk.CTkFrame):
     """The frame for the layout that displays when app is first opened 
     or when a gathering process is stopped/finished."""
-    def __init__(self, parent, controller, data_queue, seen):
+    def __init__(self, parent, controller, data_queue):
         super().__init__(parent)
 
         self.text_history = []
         self.controller = controller
         self.data_queue = data_queue
-        self.seen = seen
 
         self.grid(row=0, column=0, sticky="nsew")
         parent.rowconfigure(0, weight=1)

@@ -15,7 +15,7 @@ from azure_modules.azure_config import init_batch_client, config, blob_service_c
 COMMAND_LINE_PATH = (
     "/bin/bash -c '"
     "export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && "
-    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/azure"
+    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/azure_modules"
 )
 
 class JobManager:
@@ -41,8 +41,9 @@ class JobManager:
         except Exception as e:
             print("failed to create job")
 
-    def create_task(self, node, crawl_delay):
+    def create_task(self, node):
         """Creates the task that executes worker.py in an Azure VM node."""
+        crawl_delay = self.rules.crawl_delay
         task_id = make_safe_task_id(node.url)
         args = f"{node.url} {node.parent} {crawl_delay}"
         command_line = f"{COMMAND_LINE_PATH}/worker.py {args}"

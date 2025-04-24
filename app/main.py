@@ -16,22 +16,21 @@ class App(ctk.CTk):
     def __init__(self):
             super().__init__()
             self.title("Gather")
-            self.geometry("800x600")
+            self.geometry("800x400")
             self.container = ctk.CTkFrame(self)
             self.container.grid(row=0, column=0, sticky="nsew")
             self.grid_rowconfigure(0, weight=1)
             self.grid_columnconfigure(0, weight=1)
             self.current_frame = "OnStartFrame"
             self.frames = {}
-            self.init_frames()
             self.data_queue = Queue()
+            self.init_frames()
             self.job_start_time = 0
             self.tasks_made = 0
 
-
     def init_frames(self):
         """Each frame is a class that defines a Custom TKInter layout and the relevant functions."""
-        self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue, seen=self.seen)
+        self.frames["OnStart"] = OnStartFrame(parent=self.container, controller=self, data_queue=self.data_queue)
         self.frames["Gathering"] = GatherFrame(parent=self.container, controller=self, data_queue=self.data_queue)
         for frame in self.frames.values():
             frame.grid(row=0, column=0, sticky="nsew")
@@ -56,18 +55,18 @@ class App(ctk.CTk):
 
         """Create and submit first task - the rest will be handled recursively within the job manager."""
         first_task = job_manager.create_task(first_node)
-        job_manager.submit_task(first_node.url, first_task) 
+        job_manager.submit_task(first_task, first_node.url) 
 
         """Periodically check if job is complete."""
         job_manager.check_if_finished(start_time, job_id)
 
     def on_closing(self):
         """Cleanup when closing window."""
-        job_list = list(self.batch_client.job.list())  # Get all jobs
+        #job_list = list(self.batch_client.job.list())  # Get all jobs
 
-        for job in job_list:
-            print(f"Deleting job: {job.id}") 
-            self.batch_client.job.delete(job.id) #delete job when done
+        #for job in job_list:
+         #   print(f"Deleting job: {job.id}") 
+         #   self.batch_client.job.delete(job.id) #delete job when done
 
         for after_id in self.tk.call('after', 'info'):
             self.after_cancel(after_id) 
