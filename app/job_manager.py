@@ -47,7 +47,7 @@ class JobManager:
         crawl_delay = self.rules.crawl_delay
         task_id = make_safe_task_id(node.url)
         args = f"{node.url} {node.parent} {crawl_delay}"
-        command_line = f"{COMMAND_LINE_PATH}/ azure_modules.worker.py {args}"
+        command_line = f"{COMMAND_LINE_PATH}/worker.py' {args}"
         return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
     def submit_task(self, task, url):
