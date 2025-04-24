@@ -63,8 +63,6 @@ blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-u
 vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
 
 """Utility functions for Azure connections"""
-
-
 def init_batch_client():
     """Initialize Azure Batch client."""
    # credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])

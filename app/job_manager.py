@@ -31,6 +31,7 @@ class JobManager:
         self.init_job(job_id)
 
     def init_job(self, job_id):
+        """Configure job in Azure Batch."""
         delete_job_if_exists(job_id, self.batch_client)
         try: 
             job = batch_models.JobAddParameter(
@@ -48,6 +49,7 @@ class JobManager:
         return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
     def submit_task(self, task, url):
+        """Submits task to batch client and starts get_blob to download results from Azure."""
         self.batch_client.task.add(self.job_id, task)
         self.futures.add(self.executor.submit(self.get_blob, url))
 
@@ -97,6 +99,7 @@ class JobManager:
             self.submit_task(task, child.url)
 
     def daemon_shutdown(self):
+        """Shut down uvicorn web server when job is complete."""
         task_id = "shutdown"
         command_line = f"{COMMAND_LINE_PATH}/shutdown.py"
         task = batch_models.TaskAddParameter(id=task_id, command_line=command_line)

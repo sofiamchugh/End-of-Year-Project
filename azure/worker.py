@@ -19,6 +19,7 @@ def upload_to_blob(file_name, node, links, crawl_delay):
         print(f"Error uploading blob: {e}")
 
 def send_scrape_request(node_url, crawl_delay):
+    """Sends a request via the daemon server to scrape a URL and return links."""
     for attempt in range(RETRY_ATTEMPTS):
         try:
             response = requests.post("http://localhost:8080/scrape",  json={
