@@ -15,7 +15,7 @@ from azure.core.exceptions import ResourceNotFoundError, AzureError
 COMMAND_LINE_PATH = (
     "/bin/bash -c '"
     "export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && "
-    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo"
+    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/azure"
 )
 
 class JobManager:
