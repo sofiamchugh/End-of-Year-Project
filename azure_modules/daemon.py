@@ -3,10 +3,10 @@ from pydantic import BaseModel
 from typing import List, Optional
 from playwright.async_api import async_playwright, Browser
 from bs4 import BeautifulSoup
-import uvicorn
-from util.util import find_links
-import asyncio
 from contextlib import asynccontextmanager
+import sys, os, uvicorn, asyncio
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from util.util import find_links
 
 class ScrapeRequest(BaseModel):
     url: str

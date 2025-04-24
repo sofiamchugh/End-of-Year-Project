@@ -1,10 +1,8 @@
-import argparse
-import json
+from azure_config import config, vm_blob_service_client
+import sys, os, json, requests, logging, argparse
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util.util import url_as_blob_name
 from app.node import Node
-import requests
-import logging
-from azure_config import config, vm_blob_service_client
 RETRY_ATTEMPTS = 3
 
 def upload_to_blob(file_name, node, links, crawl_delay):

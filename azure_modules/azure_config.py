@@ -1,16 +1,11 @@
-import json
-import warnings
 import azure.batch as batch
 from azure.storage.blob import BlobServiceClient
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
-import time
+import time, requests, os, json, warnings
 from datetime import datetime, timedelta, UTC
 from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
-import requests
-from util.util import make_safe_task_id, url_as_blob_name
-import os
-from app.node import Node
+
 
 """Configuration"""
 script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -3,10 +3,11 @@ import customtkinter as ctk
 from on_start import OnStartFrame
 from sitemap import GatherFrame
 from node import Node
-import time
 from queue import Queue
+from job_manager import JobManager
+import sys, os, time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util.util import clean_url
-from app.job_manager import JobManager
 
 ctk.set_appearance_mode("light") 
 

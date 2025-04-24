@@ -3,11 +3,12 @@ import customtkinter as ctk
 from tkinter import messagebox, ttk
 import node as node
 import validators
-from util.util import process_url
 from urllib.parse import urlparse
-import time
 import azure.batch.models as batch_models
 from user_agent import UserAgent
+import sys, os, time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from util.util import process_url
     
 class OnStartFrame(ctk.CTkFrame):
     """The frame for the layout that displays when app is first opened 

@@ -1,15 +1,15 @@
 
-from azure.azure_config import init_batch_client, config, blob_service_client, delete_job_if_exists
 import azure.batch.models as batch_models
-from util.util import make_safe_task_id, url_as_blob_name
 import threading
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
-import json
 from user_agent import UserAgent
-import time
 from node import Node
 from azure.core.exceptions import ResourceNotFoundError, AzureError
+import sys, time, os, json
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from util.util import make_safe_task_id, url_as_blob_name
+from azure_modules.azure_config import init_batch_client, config, blob_service_client, delete_job_if_exists
 
 
 COMMAND_LINE_PATH = (

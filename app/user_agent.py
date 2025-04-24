@@ -1,4 +1,6 @@
 from playwright.sync_api import sync_playwright
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util.util import get_base_homepage 
 
 ANCHOR_TAG = "#"
