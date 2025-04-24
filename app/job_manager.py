@@ -15,7 +15,7 @@ from azure_modules.azure_config import init_batch_client, config, blob_service_c
 COMMAND_LINE_PATH = (
     "/bin/bash -c '"
     "export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && "
-    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/azure_modules"
+    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo"
 )
 
 class JobManager:
@@ -46,7 +46,7 @@ class JobManager:
         crawl_delay = self.rules.crawl_delay
         task_id = make_safe_task_id(node.url)
         args = f"{node.url} {node.parent} {crawl_delay}"
-        command_line = f"{COMMAND_LINE_PATH}/worker.py {args}"
+        command_line = f"{COMMAND_LINE_PATH}/ azure_modules.worker.py {args}"
         return batch_models.TaskAddParameter(id=task_id, command_line=command_line)
 
     def submit_task(self, task, url):
