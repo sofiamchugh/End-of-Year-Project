@@ -11,6 +11,7 @@ def clean_url(url):
 def url_as_blob_name(url):
     return f"{clean_url(url)}.html" 
 
+
 def make_safe_task_id(url: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9_-]", "_", url)
     if len(safe) > 58:  # 64 - len("task-") = 59

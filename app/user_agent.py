@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright
-from util import get_base_homepage 
+from util.util import get_base_homepage 
 
 ANCHOR_TAG = "#"
 ALLOW = "allow"

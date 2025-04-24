@@ -1,13 +1,13 @@
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-import node
+import app.node as node
 import validators
-from util import process_url
+from util.util import process_url
 from urllib.parse import urlparse
 import time
 import azure.batch.models as batch_models
-from user_agent import UserAgent
+from app.user_agent import UserAgent
     
 class OnStartFrame(ctk.CTkFrame):
     """The frame for the layout that displays when app is first opened 
@@ -67,7 +67,6 @@ class OnStartFrame(ctk.CTkFrame):
 
         first_url = process_url(first_url)
         first_node = node.Node(first_url, None)
-        self.controller.rules.init_from_url(first_url)
         self.controller.orchestrate_workers(first_node)
         return 1
 

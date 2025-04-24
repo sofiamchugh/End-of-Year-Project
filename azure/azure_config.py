@@ -2,14 +2,15 @@ import json
 import warnings
 import azure.batch as batch
 from azure.storage.blob import BlobServiceClient
-from azure.core.exceptions import ResourceNotFoundError, AzureError
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
 import time
 from datetime import datetime, timedelta, UTC
 from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 import requests
+from util.util import make_safe_task_id, url_as_blob_name
 import os
+from app.node import Node
 
 """Configuration"""
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,31 +64,15 @@ vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-accoun
 
 """Utility functions for Azure connections"""
 
+
 def init_batch_client():
     """Initialize Azure Batch client."""
    # credentials = batch_auth.SharedKeyCredentials(config["azure-batch-account-name"], config["azure-batch-account-key"])
     return batch.BatchServiceClient(credentials=token, batch_url=config["azure-batch-account-url"])
 
-def blob_to_data(blob):
-    """Downloads a blob and loads JSON data."""
-    blob_client = blob_service_client.get_blob_client(container=config["container-name"], blob=blob)
-    downloaded_blob = None
-    for i in range(100):
-        try:
-            downloaded_blob = blob_client.download_blob() # Download blob from Azure container
-            break
-        except ResourceNotFoundError:
-            time.sleep(1)
 
-    if downloaded_blob is not None:
-        return json.loads(downloaded_blob.readall())
-    else:
-        print(f"timed out waiting for {blob}")
-        return None
-
-def get_job_id(url, batch_client):
+def delete_job_if_exists(job_id, batch_client):
     """Names the job according to the supplied URL and checks that it does not exist already."""
-    job_id = f"gather-job-{url.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '-')}"
 
     try:
         existing_job = batch_client.job.get(job_id)  # Check if job exists
@@ -106,5 +91,3 @@ def get_job_id(url, batch_client):
             pass  
         else:
             raise  
-
-    return job_id

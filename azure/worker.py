@@ -1,10 +1,10 @@
 import argparse
 import json
-from util import url_as_blob_name
-from node import Node
+from util.util import url_as_blob_name
+from app.node import Node
 import requests
 import logging
-from azure_config import config, vm_blob_service_client
+from azure.azure_config import config, vm_blob_service_client
 RETRY_ATTEMPTS = 3
 
 def upload_to_blob(file_name, node, links, crawl_delay):

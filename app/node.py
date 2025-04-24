@@ -1,4 +1,4 @@
-from user_agent import UserAgent
+from app.user_agent import UserAgent
 class Node:
     def __init__(self, url, parent):
         self.parent = parent
@@ -15,7 +15,7 @@ class Node:
             "crawl_delay": crawl_delay
         }
         return node_data
-    def node_from_json(self, node_data, seen, lock, rules):
+    def node_from_json(self, node_data, app):
         """Uses JSON dict to populate node information, including adding children."""
         if node_data: 
             self.url = node_data["url"]
@@ -25,10 +25,10 @@ class Node:
                 self.parent = node_data["parent"]
             links = node_data["links"]
             for link in links:
-                with lock:
-                    if link not in seen: #only add previously unseen links to children
-                        if rules.url_is_allowed(link): #check for exclusion in robots.txt
-                            seen.add(link)
+                with app.lock:
+                    if link not in app.seen: #only add previously unseen links to children
+                        if app.rules.url_is_allowed(link): #check for exclusion in robots.txt
+                            app.seen.add(link)
                             child = Node(link, self.url)
                             self.add_child(child)
                         else:
