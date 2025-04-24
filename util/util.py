@@ -33,3 +33,20 @@ def process_url(url):
 def get_base_homepage(url):
     netloc = urlparse(url).netloc
     return f"{urlparse(url).scheme}://{netloc}"
+
+def find_links(soup, url):      
+    links = []     
+    for link in soup.find_all('a'):         
+        l = link.get('href')         
+        filetypes = ['.pdf', '.doc', '.xlsx', '.png', '.jpeg', '.jpg']         
+        if l:             
+            l = urljoin(url, l)             
+            if '#' in l:                 
+                continue             
+            if any(ext in l.lower() for ext in filetypes):                 
+                continue             
+            l = process_url(l)             
+            if get_base_homepage(l) != get_base_homepage(url):                 
+                continue             
+            links.append(l)     
+    return links

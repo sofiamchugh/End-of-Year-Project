@@ -58,7 +58,7 @@ class App(ctk.CTk):
         job_manager.submit_task(first_task, first_node.url) 
 
         """Periodically check if job is complete."""
-        job_manager.check_if_finished(start_time, job_id)
+        job_manager.check_if_finished(start_time)
 
     def on_closing(self):
         """Cleanup when closing window."""

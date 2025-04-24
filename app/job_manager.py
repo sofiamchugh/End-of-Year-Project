@@ -15,7 +15,8 @@ from azure_modules.azure_config import init_batch_client, config, blob_service_c
 COMMAND_LINE_PATH = (
     "/bin/bash -c '"
     "export PLAYWRIGHT_BROWSERS_PATH=/mnt/batch/tasks/shared/playwright-browsers && "
-    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo"
+    "/mnt/batch/tasks/shared/venv/bin/python3 /mnt/batch/tasks/shared/repo/azure_modules"
+
 )
 
 class JobManager:
@@ -113,7 +114,7 @@ class JobManager:
 
         if all_done:
             job_end_time = time.time()
-            print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, Tasks made = {self.tasks_made}, final crawl delay: {self.rules.crawl_delay}")
+     #       print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, Tasks made = {self.tasks_made}, final crawl delay: {self.rules.crawl_delay}")
             self.daemon_shutdown()
             self.executor.shutdown(wait=False)
 
