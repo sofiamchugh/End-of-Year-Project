@@ -67,7 +67,7 @@ class OnStartFrame(ctk.CTkFrame):
 
         first_url = process_url(first_url)
         first_node = node.Node(first_url, None)
-        self.controller.orchestrate_workers(first_node)
+        self.controller.start_job(first_node)
         return 1
 
     

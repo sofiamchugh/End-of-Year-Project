@@ -3,19 +3,9 @@ import customtkinter as ctk
 from app.on_start import OnStartFrame
 from app.sitemap import GatherFrame
 from app.node import Node
-import json
 import time
 from queue import Queue
-import azure.batch as batch
-from azure.storage.blob import BlobServiceClient
-import azure.batch.batch_auth as batch_auth
-import azure.batch.models as batch_models
-from azure.batch.models import CreateTasksErrorException
-
-import logging
-from app.user_agent import UserAgent
-from azure.azure_config import config, blob_to_data, init_batch_client, get_job_id, daemon_shutdown, create_task, submit_task
-from util.util import make_safe_task_id, url_as_blob_name, clean_url
+from util.util import clean_url
 from app.job_manager import JobManager
 
 ctk.set_appearance_mode("light") 
@@ -52,7 +42,7 @@ class App(ctk.CTk):
         frame.tkraise()
         self.current_frame = frame_name
 
-    def orchestrate_workers(self, first_node):
+    def start_job(self, first_node):
         
         self.show_frame("Gathering")
         start_time = time.time()
