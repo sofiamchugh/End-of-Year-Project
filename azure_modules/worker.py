@@ -60,4 +60,4 @@ if __name__ == "__main__":
     parser.add_argument("crawl_delay")
     args = parser.parse_args()
 
-    scraped_node, links = worker(args.node_url, args.node_parent, int(args.crawl_delay))
+    worker(args.node_url, args.node_parent, int(args.crawl_delay))
