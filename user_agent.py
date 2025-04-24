@@ -14,6 +14,7 @@ class UserAgent:
         self.crawl_delay = 3
 
     def parse_robots_txt(self, text):
+        """Read robots.txt file and add rules, if any"""
         for line in text.splitlines():
             line = line.strip()
             
@@ -36,6 +37,7 @@ class UserAgent:
                     self.crawl_delay = float(value)
    
     def init_from_url(self, url):
+        """Looks for a robots.txt file in a website"""
         print("Looking for robots.txt\n")
         url = get_base_homepage(url)
         with sync_playwright() as p:
@@ -49,8 +51,7 @@ class UserAgent:
             if response.ok:
                 text = response.text()
                 print("Found robots.txt. Parsing now \n")
-                self.parse_robots_txt(text)
-                        
+                self.parse_robots_txt(text)           
             
             else:
                 print(f"Failed to fetch robots.txt. Status: {response.status}")
@@ -58,6 +59,7 @@ class UserAgent:
             new_request.dispose()
 
     def url_is_allowed(self, url):
+        """Checks if the user agent is allowed to crawl a certain URL"""
         matched_rule = None
         matched_type = None  # "allow" or "disallow"
 
@@ -73,5 +75,4 @@ class UserAgent:
                     matched_rule = rule
                     matched_type = DISALLOW
 
-        # Comment here
         return matched_type != DISALLOW

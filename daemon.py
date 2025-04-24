@@ -5,12 +5,6 @@ from playwright.async_api import async_playwright, Browser
 from bs4 import BeautifulSoup
 import uvicorn
 from util import find_links
-import os
-import signal
-import time
-import multiprocessing
-import threading
-from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from contextlib import asynccontextmanager
 
@@ -40,9 +34,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-
 @app.post("/scrape")
 async def scrape(req: ScrapeRequest):
+    """Uses playwright to load a webpage and get links."""
     try:
         await asyncio.sleep(req.crawl_delay)
 

@@ -1,20 +1,11 @@
 import argparse
 import json
-import time
-from playwright.async_api import async_playwright
-from azure.storage.blob import BlobServiceClient
-from bs4 import BeautifulSoup
-from util import find_links, get_relevance
+from util import url_as_blob_name
 from node import Node
 import requests
 import logging
-#import nltk
 from azure_config import config, vm_blob_service_client
-
-#nltk.download('punkt') #Download this before calling get_relevance as we are working inside a VM
-
-#logging.basicConfig(filename='C:\\batch\\repo\\worker_log.txt', level=logging.DEBUG) #Configure logging
-#logger = logging.getLogger()
+RETRY_ATTEMPTS = 3
 
 def upload_to_blob(file_name, node, links, crawl_delay):
     """Uploads node data to Azure Blob Storage"""
@@ -27,58 +18,47 @@ def upload_to_blob(file_name, node, links, crawl_delay):
     except Exception as e:
         print(f"Error uploading blob: {e}")
 
-
-def scrape(node_url, node_parent, keywords, crawl_delay):
-    """
-    Scrapes the data from a webpage, 
-    calculates its importance for the given keywords
-    and uploads everything to Azure to be downloaded by main.py.
-    """
-    retry_attempts = 3
-    print(f"Processing {node_url}")
-    node = Node(node_url, node_parent) #initialize node
-    for attempt in range(3):
+def send_scrape_request(node_url, crawl_delay):
+    for attempt in range(RETRY_ATTEMPTS):
         try:
             response = requests.post("http://localhost:8080/scrape",  json={
                 "url": node_url,
-                "keywords": keywords.split(",") if keywords else [],
                 "crawl_delay": crawl_delay,
                 "timeout_ms": 15000
             }, timeout=20)
            
             result = response.json()
+
             if "error" in result:
                 print(f"Scrape error: {result['error']}")
                 return
 
-           
-            links = result["links"]
-
-            """Upload to Azure"""
-            file_name = f"{node.url.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '-')}.html"
-            upload_to_blob(file_name, node, links, crawl_delay)
-            break
-
+            return result["links"]
+        
         except requests.exceptions.JSONDecodeError:
             print("Raw response from daemon:\n", response.text)
-            raise  # or handle gracefully
+            raise  
 
         except TimeoutError as e:
-            if(attempt + 1 == retry_attempts):
+            if(attempt + 1 == RETRY_ATTEMPTS):
                 crawl_delay = crawl_delay + 1
             else:
                 print("Dropped {node.url} after 3 timeouts.")
 
 
+def worker(node_url, node_parent, crawl_delay):
+    """Sends a scrape request to the daemon, retrieves the results and uploads them to Azure."""
+    node = Node(node_url, node_parent) #initialize node
+    links = send_scrape_request(node_url, crawl_delay) #get links by scraping via daemon
+    file_name = url_as_blob_name(node.url)
+    upload_to_blob(file_name, node, links, crawl_delay)
 
-    return node, links
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("node_url")
     parser.add_argument("node_parent")
-    parser.add_argument("keywords")
     parser.add_argument("crawl_delay")
     args = parser.parse_args()
 
-    scraped_node, links = scrape(args.node_url, args.node_parent, args.keywords, int(args.crawl_delay))
+    scraped_node, links = worker(args.node_url, args.node_parent, int(args.crawl_delay))

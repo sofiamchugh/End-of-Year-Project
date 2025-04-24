@@ -5,7 +5,6 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError, AzureError
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as batch_models
-from node import Node
 import time
 from datetime import datetime, timedelta, UTC
 from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
@@ -63,10 +62,6 @@ blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-u
 vm_blob_service_client = BlobServiceClient(account_url=config["azure-blob-account-url"], credential=managed_credential)
 
 """Utility functions for Azure connections"""
-def url_as_blob_name(url):
-    """Processes URL to match blob naming format."""
-    clean_url = url.replace("https://", "").replace("http://", "").replace("/", "_").replace(".", "-")
-    return f"{clean_url}.html" 
 
 def init_batch_client():
     """Initialize Azure Batch client."""

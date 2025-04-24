@@ -25,7 +25,6 @@ class GatherFrame(ctk.CTkFrame):
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.fig.canvas.mpl_connect("button_press_event", lambda event: onClick(event, self, self.ax, self.fig))
         self.fig.canvas.mpl_connect("motion_notify_event", lambda event: onHover(event, self, self.ax, self.fig))
-        self.node_colours = []
         self.stop_button = ctk.CTkButton(self, text="Stop", command=self.stop_gathering)
         self.stop_button.pack(side=tk.BOTTOM, pady=10)
 
@@ -49,13 +48,7 @@ class GatherFrame(ctk.CTkFrame):
                     self.G.add_node(data.url)
                     if (data.parent is not None): #this is just for the root node, which has no parent
                         self.G.add_edge(data.url, data.parent) #all other nodes should have edges
-                    if (data.relevance >= 0.65): #colour coding
-                        self.node_colours.append('green')
-                    elif(data.relevance <= 0.2):
-                        self.node_colours.append('red')
-                    else:
-                        self.node_colours.append('orange')
-                #add a colour to the colours array according to relevance
+               
             #node_size = 100 for nodes 0-50, 70 for 50-100, 50 for 100-200, 30 for 200 onwards
             if nodes_count < 50:
                 node_size = 100
@@ -78,7 +71,7 @@ class GatherFrame(ctk.CTkFrame):
                 #render changes
                 self.ax.clear()
 
-                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color=self.node_colours, edge_color='gray', node_size = node_size)
+                nx.draw(self.G, self.pos, ax=self.ax, with_labels=False, node_color='orange', edge_color='gray', node_size = node_size)
                 self.canvas.draw()
 
 

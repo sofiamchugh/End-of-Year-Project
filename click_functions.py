@@ -86,7 +86,7 @@ class NodePopup:
         print("opening a URL")
         try:
             with sync_playwright() as p:
-                browser = p.chrome.launch(headless=headless) 
+                browser = p.chromium.launch(headless=headless) 
                 page = browser.new_page()
                 page.goto(self.node)
                 return page, browser
