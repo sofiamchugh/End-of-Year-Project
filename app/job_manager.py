@@ -28,7 +28,7 @@ class JobManager:
         self.rules = UserAgent()
         self.seen = set()
         self.lock = threading.Lock()
-        self.executor = ThreadPoolExecutor(max_workers = 3)
+        self.executor = ThreadPoolExecutor(max_workers = 5)
         self.init_job(job_id)
 
     def init_job(self, job_id):
@@ -58,6 +58,7 @@ class JobManager:
     def get_blob(self, url):
         """Gets the blob from Azure, processes into node, and starts processing children."""
         blob_name = url_as_blob_name(url)
+        print(f"downloading {blob_name}")
         crawl_delay = self.rules.crawl_delay
         node, new_delay = self.process_azure_info(blob_name)
         self.update_crawl_delay(new_delay, crawl_delay)
@@ -73,7 +74,7 @@ class JobManager:
                 break
             except ResourceNotFoundError:
                 time.sleep(1)
-
+    
         if downloaded_blob is not None:
             return json.loads(downloaded_blob.readall())
         else:
@@ -85,28 +86,23 @@ class JobManager:
 
         data = self.blob_to_data(blob_name) #downloads blob from azure
         node = Node(None, None)
-        
-        node.node_from_json(data, self.app)
+        node.node_from_json(data, self)
+        print("out of node_from_json")
         self.app.data_queue.put(node) # Put node in queue to be added to graph
-
+        print("added node to data queue")
         new_delay = data["crawl_delay"] 
         return node, new_delay
     
     def process_children(self, node):
         """Creates and submits tasks for children of a node."""
+        print(f"processing {len(node.children)}children")
         crawl_delay = self.rules.crawl_delay
         for child in node.children:
-            task = self.create_task(child, crawl_delay)
+            task = self.create_task(child)
+            print("made a task")
             self.app.tasks_made +=1
             self.submit_task(task, child.url)
 
-    def daemon_shutdown(self):
-        """Shut down uvicorn web server when job is complete."""
-        task_id = "shutdown"
-        command_line = f"{COMMAND_LINE_PATH}/shutdown.py"
-        task = batch_models.TaskAddParameter(id=task_id, command_line=command_line)
-        self.batch_client.task.add(self.job_id, task)
-    
     def check_if_finished(self, start_time):
         """Polls self.future periodically to see if there are any tasks left to process, 
             and shuts down daemon if none are found."""
@@ -114,8 +110,7 @@ class JobManager:
 
         if all_done:
             job_end_time = time.time()
-     #       print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, Tasks made = {self.tasks_made}, final crawl delay: {self.rules.crawl_delay}")
-            self.daemon_shutdown()
+            print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, final crawl delay: {self.rules.crawl_delay}")
             self.executor.shutdown(wait=False)
 
         else:

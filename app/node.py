@@ -30,11 +30,12 @@ class Node:
             for link in links:
                 with app.lock:
                     if link not in app.seen: #only add previously unseen links to children
-                        if app.rules.url_is_allowed(link): #check for exclusion in robots.txt
+                        if True:# app.rules.url_is_allowed(link): #check for exclusion in robots.txt
                             app.seen.add(link)
                             child = Node(link, self.url)
                             self.add_child(child)
                         else:
                             print(f"{link} is not allowed")
+            print(f"added {len(self.children)} nodes")
         else:
             print("Node data not found. ")

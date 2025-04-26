@@ -7,10 +7,10 @@ from contextlib import asynccontextmanager
 import sys, os, uvicorn, asyncio
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util.util import find_links
+MAX_RETRIES = 3
 
 class ScrapeRequest(BaseModel):
     url: str
-    keywords: Optional[List[str]] = []
     crawl_delay: Optional[int] = 0
 
 """Playwright persists in lifespan between different workers"""

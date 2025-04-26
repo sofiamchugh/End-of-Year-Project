@@ -3,7 +3,8 @@ import sys, os, json, requests, logging, argparse
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util.util import url_as_blob_name
 from app.node import Node
-RETRY_ATTEMPTS = 3
+from requests.exceptions import ConnectionError, Timeout, RequestException
+MAX_RETRIES = 3
 
 def upload_to_blob(file_name, node, links, crawl_delay):
     """Uploads node data to Azure Blob Storage"""
@@ -18,7 +19,7 @@ def upload_to_blob(file_name, node, links, crawl_delay):
 
 def send_scrape_request(node_url, crawl_delay):
     """Sends a request via the daemon server to scrape a URL and return links."""
-    for attempt in range(RETRY_ATTEMPTS):
+    for attempt in range(MAX_RETRIES):
         try:
             response = requests.post("http://localhost:8080/scrape",  json={
                 "url": node_url,
@@ -39,10 +40,22 @@ def send_scrape_request(node_url, crawl_delay):
             raise  
 
         except TimeoutError as e:
-            if(attempt + 1 == RETRY_ATTEMPTS):
-                crawl_delay = crawl_delay + 1
-            else:
-                print("Dropped {node.url} after 3 timeouts.")
+            crawl_delay +=1
+            print(f"Timeout error: {e}")
+
+        except ConnectionError as ce:
+            crawl_delay +=1
+            print(f"[Attempt {attempt}] ConnectionError: Cannot connect to scrape daemon. Retrying...")
+        
+        except Timeout as te:
+            crawl_delay +=1
+            print(f"[Attempt {attempt}] TimeoutError: Scrape daemon did not respond. Retrying...")
+        
+        except RequestException as re:
+            crawl_delay
+            print(f"[Attempt {attempt}] RequestException: {str(re)}. Retrying...")
+
+    raise Exception("Failed to connect.")
 
 
 def worker(node_url, node_parent, crawl_delay):

@@ -39,6 +39,7 @@ class GatherFrame(ctk.CTkFrame):
         try:
             nodes_count = len(self.G.nodes)
             if not self.data_queue.empty():
+                print("Found node in data queue")
                 data = self.data_queue.get_nowait() #get nodes from queue
                 if data is None:
                     return

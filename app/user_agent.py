@@ -28,6 +28,7 @@ class UserAgent:
 
             key, value = map(str.strip, line.split(':', 1))
             key = key.lower()
+            parsing = False
             if key == USER_AGENT:
                 parsing = (value == "*")
             elif parsing:
