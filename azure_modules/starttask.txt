@@ -36,4 +36,3 @@ nohup /mnt/batch/tasks/shared/venv/bin/uvicorn repo.daemon:app \
   --port 8080 \
   --log-level info \
   > /mnt/batch/tasks/startup_log.txt 2>&1 &
-"
