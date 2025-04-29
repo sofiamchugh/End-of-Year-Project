@@ -28,7 +28,7 @@ class JobManager:
         self.rules = UserAgent()
         self.seen = set()
         self.lock = threading.Lock()
-        self.executor = ThreadPoolExecutor(max_workers = 5)
+        self.executor = ThreadPoolExecutor(max_workers = 10)
         self.init_job(job_id)
 
     def init_job(self, job_id):
@@ -110,6 +110,7 @@ class JobManager:
 
         if all_done:
             job_end_time = time.time()
+            time.sleep(3)
             print(f"Job took {job_end_time - start_time} seconds. Processed {len(self.seen)}, final crawl delay: {self.rules.crawl_delay}")
             self.executor.shutdown(wait=False)
 
